@@ -3,21 +3,21 @@
 export default function MessageBubble({ message, isOwn }) {
   return (
     <div
-      className={`flex flex-col max-w-[75%] gap-1.5 ${
+      className={`flex flex-col max-w-[75%] gap-1.5 animate-[fadeInUp_0.3s_ease-out] ${
         isOwn ? "items-end self-end" : "items-start self-start"
       }`}
     >
       <div className={`flex items-baseline gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-        <span className="text-[11px] font-semibold text-slate-400 tracking-wide">
+        <span className="text-[11px] font-semibold text-slate-300 tracking-wide">
           {isOwn ? "You" : message.author}
         </span>
-        <span className="text-[10px] text-slate-600 font-medium">{message.time}</span>
+        <span className="text-[10px] text-slate-400 font-medium">{message.time}</span>
       </div>
       <div
         className={`px-5 py-3 shadow-md text-[15px] leading-relaxed break-words ${
           isOwn
-            ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-blue-900/20"
-            : "bg-slate-800 text-slate-200 rounded-2xl rounded-tl-sm border border-slate-700/50 shadow-black/20"
+            ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm shadow-blue-500/20"
+            : "bg-slate-700 text-slate-100 rounded-2xl rounded-tl-sm border border-slate-600 shadow-black/10"
         }`}
       >
         {message.content}

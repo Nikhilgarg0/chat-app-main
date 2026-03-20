@@ -4,10 +4,12 @@ let socket;
 
 export const getSocket = () => {
   if (!socket) {
-    socket = io(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", {
+    // Let socket.io auto-detect the origin in both dev and prod
+    socket = io({
+      path: "/socket.io",
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     });
   }
   return socket;
-};
+};  

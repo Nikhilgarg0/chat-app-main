@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getSocket } from "@/lib/socket";
+import { pusherClient } from "@/lib/pusher";
 
 export function useSocket(room) {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
-  const socketRef = useRef(null);
+  const channelRef = useRef(null);
 
   useEffect(() => {
+    if (!room) return;
+
     let active = true;
-    const socket = getSocket();
-    socketRef.current = socket;
 
     const fetchHistory = async () => {
       try {
@@ -27,17 +27,15 @@ export function useSocket(room) {
 
     fetchHistory();
 
-    const onConnect = () => {
+    const channelName = `chat-${room}`;
+    const channel = pusherClient.subscribe(channelName);
+    channelRef.current = channel;
+
+    channel.bind("pusher:subscription_succeeded", () => {
       setConnected(true);
-      socket.emit("join_room", room); // Send room join
-    };
+    });
 
-    const onDisconnect = () => {
-      setConnected(false);
-    };
-
-    const onReceiveMessage = (data) => {
-      console.log("Received via socket:", data);
+    channel.bind("new-message", (data) => {
       setMessages((prev) => {
         // Robust dedup based on a unique client-generated ID
         if (data.msgId && prev.some((m) => m.msgId === data.msgId)) {
@@ -49,31 +47,24 @@ export function useSocket(room) {
         }
         return [...prev, data];
       });
+    });
+
+    // Also monitor global connection state
+    const handleStateChange = (states) => {
+      setConnected(states.current === "connected");
     };
-
-    // Attach listeners
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-    socket.on("receive_message", onReceiveMessage);
-
-    // Initial explicit join in case it connects before listener is up
-    socket.emit("join_room", room);
-
-    if (socket.connected) {
-      setConnected(true);
-    }
+    pusherClient.connection.bind("state_change", handleStateChange);
 
     return () => {
       active = false;
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      socket.off("receive_message", onReceiveMessage);
+      channel.unbind_all();
+      channel.unsubscribe();
+      pusherClient.connection.unbind("state_change", handleStateChange);
     };
   }, [room]);
 
   const sendMessage = async (author, content) => {
-    const socket = socketRef.current;
-    if (!socket || !content.trim()) return;
+    if (!content.trim()) return;
 
     const time = new Date().toLocaleTimeString([], {
       hour: "2-digit",
@@ -83,13 +74,10 @@ export function useSocket(room) {
     const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
     const messageData = { room, author, content, time, msgId };
 
-    // Emit via socket instantly
-    socket.emit("send_message", messageData);
-
-    // Optimistic UI update (makes it visible instantly to sender)
+    // Optimistic UI update
     setMessages((prev) => [...prev, messageData]);
 
-    // Save to DB in the background
+    // Save to DB and trigger Pusher broadcast
     fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

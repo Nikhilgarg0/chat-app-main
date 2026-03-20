@@ -1,6 +1,7 @@
 import connectDB from "@/lib/mongodb";
 import Message from "@/models/Message";
 import { NextResponse } from "next/server";
+import { pusherServer } from "@/lib/pusher";
 
 export async function GET(req) {
   try {
@@ -25,7 +26,7 @@ export async function POST(req) {
   try {
     await connectDB();
     const body = await req.json();
-    const { room, author, content, time } = body;
+    const { room, author, content, time, msgId } = body;
 
     if (!room || !author || !content || !time) {
       return NextResponse.json(
@@ -34,7 +35,20 @@ export async function POST(req) {
       );
     }
 
-    const message = await Message.create({ room, author, content, time });
+    const message = await Message.create({ room, author, content, time, msgId });
+
+    try {
+      await pusherServer.trigger(`chat-${room}`, "new-message", {
+        room,
+        author,
+        content,
+        time,
+        msgId
+      });
+    } catch (pusherError) {
+      console.error("Pusher trigger error:", pusherError);
+    }
+
     return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
