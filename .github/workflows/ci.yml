@@ -1,0 +1,49 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Recommended for Next.js
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build Next.js application
+        run: npm run build
+        env:
+          # Add any build-time environment variables required by Next.js or Firebase here.
+          # NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          CI: true
+
+  # Optional: Add a deploy job below if you are deploying manually via GitHub actions (e.g., to AWS, VPS, or Firebase Hosting).
+  # If you are using Vercel, it usually handles deployments automatically upon push to GitHub.
+  # 
+  # deploy:
+  #   needs: build-and-lint
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #     - name: Deploy
+  #       run: echo "Add deployment script here"
