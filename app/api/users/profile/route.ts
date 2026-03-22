@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import { User } from "@/models/User";
+
+export async function POST(req: Request) {
+  try {
+    const { firebaseUid, email, displayName, avatarUrl } = await req.json();
+
+    if (!firebaseUid || !email || !displayName) {
+      return NextResponse.json(
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+
+    let user = await User.findOne({ firebaseUid });
+
+    if (!user) {
+      user = await User.create({
+        firebaseUid,
+        email,
+        displayName,
+        avatarUrl: avatarUrl || "",
+        workspaces: [],
+      });
+    }
+
+    return NextResponse.json({ success: true, user });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const firebaseUid = searchParams.get("firebaseUid");
+
+    if (!firebaseUid) {
+      return NextResponse.json(
+        { success: false, error: "Missing firebaseUid" },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+    const user = await User.findOne({ firebaseUid });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, user });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
