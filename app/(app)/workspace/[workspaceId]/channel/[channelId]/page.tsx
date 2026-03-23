@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import MessageBubble from "@/components/chat/MessageBubble";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/firebase";
+
+const AI_COMMANDS = [
+  { command: "/ask", description: "Ask AI a question about this conversation" },
+  { command: "/summarize", description: "Summarize the conversation" },
+  { command: "/todo", description: "Extract action items" }
+];
 
 export default function ChannelPage() {
   const { channelId, workspaceId } = useParams();
@@ -16,8 +19,14 @@ export default function ChannelPage() {
   const [isThinking, setIsThinking] = useState(false);
   const [channelName, setChannelName] = useState(channelId as string);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const { messages, connected, sendMessage, sendTyping, typingUsers } = useSocket(channelId as string);
+  const [showMenu, setShowMenu] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const { messages, connected, sendMessage, sendTyping, typingUsers, refetchMessages } = useSocket(channelId as string);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -27,9 +36,11 @@ export default function ChannelPage() {
           if (res.ok) {
             const data = await res.json();
             setUsername(data.user?.displayName || user.email?.split("@")[0] || "User");
+          } else {
+            setUsername(user.email?.split("@")[0] || "User");
           }
         } catch (e) {
-          setUsername("User");
+          setUsername(user.email?.split("@")[0] || "User");
         }
       }
     });
@@ -57,10 +68,46 @@ export default function ChannelPage() {
     }, 100);
   }, [messages.length]);
 
+  const filteredCommands = AI_COMMANDS.filter((c) => 
+    c.command.toLowerCase().startsWith(messageInput.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (messageInput.startsWith("/") && !messageInput.includes(" ") && filteredCommands.length > 0) {
+      setShowMenu(true);
+    } else {
+      setShowMenu(false);
+    }
+  }, [messageInput]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && 
+          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
+
+  const handleSelectCommand = (cmd: string) => {
+    setMessageInput(cmd + " ");
+    setShowMenu(false);
+    inputRef.current?.focus();
+  };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageInput(e.target.value);
-    sendTyping(username, e.target.value.length > 0);
+    sendTyping(username, true);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTyping(username, false);
+    }, 2000);
   };
 
   const handleSend = async () => {
@@ -76,7 +123,7 @@ export default function ChannelPage() {
       
       setIsThinking(true);
       try {
-        await fetch("/api/ai", {
+        const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -86,6 +133,10 @@ export default function ChannelPage() {
             workspaceId
           })
         });
+        
+        if (res.ok) {
+          await refetchMessages();  
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -97,102 +148,186 @@ export default function ChannelPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSend();
+    if (showMenu && filteredCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSelectCommand(filteredCommands[selectedIndex].command);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowMenu(false);
+        return;
+      }
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const onReact = async (messageId: string, emoji: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await fetch(`/api/messages/${messageId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emoji,
+          firebaseUid: auth.currentUser.uid,
+          username
+        })
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden z-10 w-full animate-[fadeInUp_0.4s_ease-out]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700/60 bg-slate-800/80 backdrop-blur-md z-20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="px-3 py-1 bg-slate-700 text-slate-300 font-mono border-slate-600 truncate max-w-xs block">
-            #{channelName}
-          </Badge>
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            {connected ? (
-              <span className="text-green-400 font-medium">Encrypted Link</span>
-            ) : (
-              <span className="text-yellow-400 animate-pulse font-medium">Establishing...</span>
-            )}
-          </span>
+    <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
+      {/* Header - Glassmorphism */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
+          <h2 className="text-[var(--text-primary)] font-display font-bold text-lg tracking-tight">{channelName}</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge
-            variant="outline"
-            className={`px-3 py-1 font-medium border-0 ${
-              connected ? "text-green-300 bg-green-500/10" : "text-amber-300 bg-amber-500/10"
-            }`}
-          >
-            <div className={`w-2 h-2 rounded-full mr-2 ${connected ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]" : "bg-amber-400 animate-bounce"}`}></div>
-            {connected ? "LIVE" : "SYNCING"}
-          </Badge>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
+            <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--success)]" : "bg-[var(--text-tertiary)] animate-pulse"}`}></div>
+            <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "Connected" : "Syncing"}</span>
+          </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain">
+      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col gap-[2px]">
         {messages.length === 0 && connected && (
           <div className="flex-1 flex flex-col items-center justify-center opacity-40 space-y-4 pt-10">
-            <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 shadow-inner">
-              <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            <div className="w-16 h-16 rounded-[24px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] shadow-apple">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
             </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-slate-300">End-to-End Encrypted</p>
-              <p className="text-xs text-slate-500 mt-1">Awaiting incoming transmissions...</p>
+            <div className="text-center font-body">
+              <p className="text-[15px] font-semibold text-[var(--text-primary)] tracking-tight">Encrypted Hub</p>
+              <p className="text-[13px] text-[var(--text-secondary)] mt-1">Beginning of # {channelName}</p>
             </div>
-          </div>
-        )}
-        {messages.map((msg: any, i: number) => (
-          <MessageBubble
-            key={i}
-            message={msg}
-            isOwn={msg.author === username}
-          />
-        ))}
-        {isThinking && (
-          <div className="flex animate-pulse items-center gap-2 p-2 bg-slate-800/40 rounded-xl rounded-bl-sm self-start max-w-[50%]">
-             <div className="w-1.5 h-1.5 bg-fuchsia-400 rounded-full"></div>
-             <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
-             <div className="w-1.5 h-1.5 bg-fuchsia-600 rounded-full"></div>
-             <span className="text-[10px] text-fuchsia-300 font-medium tracking-widest uppercase ml-1">Nexus AI is thinking...</span>
           </div>
         )}
         
-        {typingUsers.filter(u => u !== username).length > 0 && (
-          <div className="flex items-center gap-2 p-2 bg-slate-800/20 rounded-xl rounded-bl-sm self-start max-w-[50%] animate-in fade-in zoom-in duration-300">
-             <div className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-             <div className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-             <div className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-             <span className="text-[10px] text-slate-400 font-medium tracking-widest ml-1 truncate">
-               {typingUsers.filter(u => u !== username).join(', ')} is typing...
-             </span>
+        {messages.map((msg: any, i: number) => {
+          const prevMsg: any = i > 0 ? messages[i - 1] : null;
+          const isConsecutive = prevMsg && prevMsg.author === msg.author && prevMsg.type === msg.type;
+          
+          return (
+            <MessageBubble
+              key={i}
+              message={msg}
+              isOwn={msg.author === username}
+              firebaseUid={auth.currentUser?.uid}
+              onReact={onReact}
+              isConsecutive={isConsecutive}
+            />
+          );
+        })}
+
+        {isThinking && (
+          <div className="flex items-start gap-3 px-4 py-2 mt-4 mb-2 animate-slide-up">
+            <div className="w-8 h-8 rounded-lg shrink-0 bg-transparent flex items-center justify-center border border-[var(--ai-accent)] border-opacity-30 shadow-[0_0_12px_var(--ai-bg)_inset] opacity-80 backdrop-blur-sm">
+              <span className="text-[10px] text-[var(--ai-accent)] font-bold">AI</span>
+            </div>
+            <div className="flex flex-col gap-1">
+               <span className="text-[12px] font-semibold tracking-wide text-[var(--ai-accent)] flex items-center gap-2">
+                 Nexus AI 
+               </span>
+               <div className="flex gap-1 py-1.5">
+                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
+               </div>
+            </div>
           </div>
         )}
         
         <div ref={bottomRef} className="h-4" />
       </div>
 
-      {/* Input */}
-      <div className="p-6 bg-slate-800/80 backdrop-blur-xl border-t border-slate-700/60 z-20">
-        <div className="max-w-6xl mx-auto flex items-end gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-700 focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/30 transition-all shadow-inner">
-          <Input
-            placeholder="Transmit message..."
-            value={messageInput}
-            onChange={handleMessageChange}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent border-0 focus-visible:ring-0 text-slate-100 placeholder:text-slate-500 px-4 py-3 h-auto shadow-none text-base"
-            autoFocus
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!messageInput.trim() || !connected || !username}
-            className="bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white rounded-xl h-12 w-12 p-0 flex items-center justify-center shrink-0 transition-transform active:scale-95 disabled:opacity-50 border-0 shadow-lg"
-          >
-            <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-          </Button>
-        </div>
-        <div className="text-center mt-2 max-w-6xl mx-auto">
-          <p className="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Secured via TLS Protocol</p>
+      {/* Input wrapper - Glassmorphism */}
+      <div className="p-4 bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] border-t border-[var(--border)] z-20 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
+        <div className="max-w-[1000px] mx-auto relative group">
+          
+          {/* Typing Indicator */}
+          {typingUsers.filter((u: string) => u !== username).length > 0 && (
+            <div className="absolute -top-7 left-2 flex items-center gap-1.5 animate-slide-up z-0 px-2 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm">
+              <span className="text-[11px] text-[var(--text-tertiary)] font-medium italic">
+                {typingUsers.filter((u: string) => u !== username).join(', ')} is typing
+              </span>
+              <div className="flex gap-0.5 ml-1">
+                <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          )}
+
+          {/* Splash Command Menu */}
+          {showMenu && filteredCommands.length > 0 && (
+            <div 
+              ref={menuRef}
+              className="absolute bottom-full left-4 mb-3 w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+            >
+              <div className="text-[var(--ai-accent)] text-[10px] font-bold tracking-widest uppercase mb-1 px-2 pt-1 flex items-center gap-1.5">
+                ✦ AI Command
+              </div>
+              {filteredCommands.map((item, idx) => (
+                <div
+                  key={item.command}
+                  onClick={() => handleSelectCommand(item.command)}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  className={`flex flex-row items-center gap-3 px-[12px] py-[8px] rounded-[8px] cursor-pointer transition-colors ${
+                    idx === selectedIndex ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--bg-elevated)]"
+                  }`}
+                >
+                  <span className="text-[var(--accent)] font-mono font-medium text-[13px] shrink-0">{item.command}</span>
+                  <span className="text-[var(--text-secondary)] text-[13px] truncate">{item.description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input Bar */}
+          <div className="w-full flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] pr-[6px] transition-all relative z-10">
+            <div className="pl-3 py-1 flex-1 flex">
+              <input
+                ref={inputRef}
+                placeholder="Message channel..."
+                value={messageInput}
+                onChange={handleMessageChange}
+                onKeyDown={handleKeyDown}
+                className="w-full bg-transparent border-0 ring-0 focus:ring-0 text-[15px] font-body text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
+                autoFocus
+                disabled={!connected}
+              />
+            </div>
+            
+            <button
+              onClick={handleSend}
+              disabled={!messageInput.trim() || !connected || !username}
+              className="w-8 h-8 rounded-[16px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
+            >
+              <svg className="w-4 h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+          </div>
+          
         </div>
       </div>
     </div>

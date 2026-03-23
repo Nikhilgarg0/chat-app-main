@@ -5,28 +5,26 @@ import { pusherClient } from "@/lib/pusher";
 
 export function useSocket(channelId) {
   const [messages, setMessages] = useState([]);
-  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [typingUsers, setTypingUsers] = useState([]);
   const [connected, setConnected] = useState(false);
   const channelRef = useRef(null);
+
+  const refetchMessages = async () => {
+    try {
+      const res = await fetch(`/api/messages?channelId=${channelId}`);
+      const data = await res.json();
+      if (data.success) {
+        setMessages(data.messages);
+      }
+    } catch (err) {
+      console.error("Failed to fetch message history:", err);
+    }
+  };
 
   useEffect(() => {
     if (!channelId) return;
 
-    let active = true;
-
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch(`/api/messages?channelId=${channelId}`);
-        const data = await res.json();
-        if (data.success && active) {
-          setMessages(data.messages);
-        }
-      } catch (err) {
-        console.error("Failed to fetch message history:", err);
-      }
-    };
-
-    fetchHistory();
+    refetchMessages();
 
     const channelName = `chat-${channelId}`;
     const channel = pusherClient.subscribe(channelName);
@@ -50,13 +48,25 @@ export function useSocket(channelId) {
       });
     });
 
-    channel.bind("client-typing", ({ username, isTyping }) => {
+    channel.bind("user-typing", ({ username, isTyping }) => {
       setTypingUsers((prev) => {
-        const next = new Set(prev);
-        if (isTyping) next.add(username);
-        else next.delete(username);
-        return next;
+        if (isTyping) {
+          if (!prev.includes(username)) return [...prev, username];
+          return prev;
+        } else {
+          return prev.filter((u) => u !== username);
+        }
       });
+    });
+
+    channel.bind("reaction-update", (data) => {
+      setMessages((prev) => 
+        prev.map((msg) =>
+          msg._id === data.messageId
+            ? { ...msg, reactions: data.reactions }
+            : msg
+        )
+      );
     });
 
     // Also monitor global connection state
@@ -66,7 +76,6 @@ export function useSocket(channelId) {
     pusherClient.connection.bind("state_change", handleStateChange);
 
     return () => {
-      active = false;
       channel.unbind_all();
       channel.unsubscribe();
       pusherClient.connection.unbind("state_change", handleStateChange);
@@ -105,5 +114,5 @@ export function useSocket(channelId) {
     }).catch(() => {});
   };
 
-  return { messages, connected, sendMessage, sendTyping, typingUsers: Array.from(typingUsers) };
+  return { messages, connected, sendMessage, sendTyping, typingUsers, refetchMessages };
 }

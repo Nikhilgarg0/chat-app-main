@@ -17,11 +17,8 @@ export async function POST(req: Request) {
 
     let user = await User.findOneAndUpdate(
       { firebaseUid },
-      { 
-        $set: { email, displayName },
-        $setOnInsert: { avatarUrl: avatarUrl || "", workspaces: [] }
-      },
-      { new: true, upsert: true }
+      { firebaseUid, email, displayName },
+      { upsert: true, new: true }
     );
 
     return NextResponse.json({ success: true, user });

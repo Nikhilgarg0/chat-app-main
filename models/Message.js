@@ -7,6 +7,7 @@ const MessageSchema = new mongoose.Schema({
   time: { type: String, required: true },
   msgId: { type: String, index: true },
   type: { type: String, default: "text", enum: ["text", "ai", "system"] },
+  reactions: { type: Map, of: [String], default: {} },
 }, { timestamps: true });
 
 const Message =

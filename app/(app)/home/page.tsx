@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { signOut } from "firebase/auth";
 
 export default function HomePage() {
@@ -20,6 +18,10 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  
+  // UI state
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showJoinForm, setShowJoinForm] = useState(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -119,117 +121,137 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
-        <div className="flex flex-col items-center gap-4 z-10">
-          <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
-        </div>
+      <main className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
+        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-[100px] pointer-events-none" />
-      
-      <div className="mb-10 text-center animate-[fadeInUp_0.4s_ease-out] z-10">
-        <Badge className="mb-4 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 text-xs uppercase tracking-widest">
-          Dashboard
-        </Badge>
-        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-md mb-3">
-          Welcome, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">{userProfile?.displayName || "Guest"}</span>
-        </h1>
-        <p className="text-base text-slate-400">Join an existing network or deploy a new secure workspace.</p>
-      </div>
+    <main className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] font-body">
+      {/* Top Navbar */}
+      <nav className="flex items-center justify-between px-8 py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-xs">N</div>
+          <span className="font-display font-semibold text-lg tracking-tight">Nexus</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" className="text-[var(--text-secondary)] hover:text-red-400 text-sm h-8 px-3" onClick={handleLogout}>
+            Logout
+          </Button>
+          <div className="w-8 h-8 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-center font-medium text-xs text-[var(--text-primary)]">
+            {userProfile?.displayName?.[0]?.toUpperCase() || "?"}
+          </div>
+        </div>
+      </nav>
 
-      <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] p-8 w-full max-w-sm flex flex-col gap-6 transform transition-all animate-[fadeInUp_0.5s_ease-out] z-10">
-        
+      {/* Main Content */}
+      <div className="flex flex-col items-center w-full max-w-4xl mx-auto px-6 py-12 animate-slide-up">
+        <div className="w-full mb-10">
+          <h1 className="text-3xl font-bold font-display tracking-tight text-[var(--text-primary)]">
+            Your Workspaces
+          </h1>
+          <p className="text-[var(--text-secondary)] mt-1">Select a workspace or create a new one to get started.</p>
+        </div>
+
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-xl animate-[bounce_0.3s_ease-in-out]">
-            <p className="text-red-400 text-xs text-center font-medium">{error}</p>
+          <div className="w-full p-4 mb-6 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium">
+            {error}
           </div>
         )}
 
-        {workspaces.length > 0 && (
-          <div className="space-y-3 mb-2">
-            <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold flex items-center justify-between">
-              <span>Your Workspaces</span>
-              <Badge variant="outline" className="text-xs py-0 px-2 bg-slate-800 border-slate-700">{workspaces.length}</Badge>
-            </div>
-            <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-1 scroll-smooth [&::-webkit-scrollbar]:hidden">
-              {workspaces.map((ws: any) => (
-                <div key={ws._id} className="flex items-center justify-between bg-slate-900/50 p-3 rounded-2xl border border-slate-800 group hover:border-slate-700 transition-colors">
-                  <div className="flex flex-col overflow-hidden mr-3">
-                    <span className="text-sm font-bold text-slate-200 truncate">{ws.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">Code: {ws.inviteCode}</span>
-                  </div>
-                  <Button 
-                    size="sm"
-                    onClick={() => router.push(`/workspace/${ws._id}`)}
-                    className="shrink-0 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/20 transition-all rounded-lg text-xs h-8 px-3"
-                  >
-                    Enter
-                  </Button>
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {workspaces.map((ws: any) => (
+            <div 
+              key={ws._id} 
+              className="group flex flex-col justify-between p-5 rounded-[16px] bg-[var(--bg-surface)] border border-[var(--border)] shadow-apple-sm hover:shadow-apple transition-all"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-display font-semibold text-lg truncate pr-3">{ws.name}</h3>
+                <span className="flex-shrink-0 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-full px-2.5 py-1 text-[10px] font-mono text-[var(--text-secondary)]">
+                  Code: {ws.inviteCode}
+                </span>
+              </div>
+              <div className="flex items-end justify-between mt-auto">
+                <div className="flex items-center gap-1.5 test-xs text-[var(--text-secondary)]">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                  <span className="text-xs font-medium">{ws.members?.length || 1} Members</span>
                 </div>
-              ))}
+                <Button 
+                  onClick={() => router.push(`/workspace/${ws._id}`)}
+                  className="h-9 px-4 rounded-[980px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-0 transition-all text-sm font-medium focus:ring-0 active:scale-[0.98]"
+                >
+                  Open
+                </Button>
+              </div>
             </div>
+          ))}
+
+          {/* New Workspace Card */}
+          <div 
+            onClick={() => { setShowCreateForm(true); setShowJoinForm(false); }}
+            className={`group flex flex-col justify-center items-center p-5 rounded-[16px] border border-dashed transition-all cursor-pointer min-h-[140px]
+              ${showCreateForm 
+                ? "border-[var(--accent)] bg-[var(--bg-surface)] cursor-default shadow-apple" 
+                : "border-[var(--border-strong)] hover:border-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"}`}
+          >
+            {!showCreateForm ? (
+              <div className="flex flex-col items-center gap-2 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                <span className="text-sm font-medium">New Workspace</span>
+              </div>
+            ) : (
+              <div className="w-full flex justify-between gap-3 animate-slide-up" onClick={e => e.stopPropagation()}>
+                <input
+                  placeholder="Workspace Name"
+                  value={workspaceName}
+                  onChange={(e) => setWorkspaceName(e.target.value)}
+                  autoFocus
+                  onKeyDown={e => e.key === "Enter" && handleCreateWorkspace()}
+                  className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] px-[14px] py-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
+                />
+                <Button 
+                  onClick={handleCreateWorkspace}
+                  disabled={!workspaceName.trim() || isCreating}
+                  className="h-auto px-5 rounded-[980px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium border-0 transition-all active:scale-[0.98]"
+                >
+                  {isCreating ? "Creating..." : "Create"}
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-
-        <div className="space-y-3">
-          <Input
-            placeholder="NEW WORKSPACE NAME"
-            value={workspaceName}
-            onChange={(e) => setWorkspaceName(e.target.value)}
-            className="uppercase bg-slate-900/50 border-slate-700 text-slate-100 placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-blue-500 text-center font-mono text-sm tracking-widest h-12 rounded-xl"
-          />
-          <Button
-            onClick={handleCreateWorkspace}
-            disabled={!workspaceName.trim() || isCreating || isJoining}
-            className="w-full relative group overflow-hidden bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold py-6 rounded-xl transition-all border-0 shadow-lg hover:shadow-blue-500/25 disabled:opacity-50"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2 text-base">
-              {isCreating ? "Deploying..." : "Deploy Workspace"}
-            </span>
-            <div className="absolute inset-0 h-full w-full bg-white/20 scale-0 group-hover:scale-100 transition-transform origin-center rounded-xl duration-300 z-0"></div>
-          </Button>
         </div>
 
-        <div className="flex items-center gap-4 py-2">
-          <div className="flex-1 h-px bg-slate-700" />
-          <span className="text-xs text-slate-500 uppercase tracking-widest font-semibold flex items-center gap-1">
-             Connect
-          </span>
-          <div className="flex-1 h-px bg-slate-700" />
+        {/* Join Workspace Context */}
+        <div className="w-full flex flex-col items-center mt-4">
+          {!showJoinForm ? (
+            <button 
+              onClick={() => { setShowJoinForm(true); setShowCreateForm(false); }}
+              className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium border-b border-transparent hover:border-[var(--text-secondary)] pb-0.5"
+            >
+              Join with code
+            </button>
+          ) : (
+            <div className="w-full max-w-md flex justify-between gap-3 animate-slide-up bg-[var(--bg-surface)] p-2 rounded-[16px] border border-[var(--border)] shadow-apple">
+              <input
+                placeholder="Enter invite code"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                autoFocus
+                onKeyDown={e => e.key === "Enter" && handleJoinWorkspace()}
+                className="flex-1 bg-transparent border-0 ring-0 focus:ring-0 text-sm px-4 uppercase font-mono tracking-wider outline-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+              />
+              <Button 
+                onClick={handleJoinWorkspace}
+                disabled={!inviteCode.trim() || isJoining}
+                className="h-10 px-6 rounded-[980px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-0 transition-all text-sm font-medium focus:ring-0 active:scale-[0.98]"
+              >
+                {isJoining ? "Joining..." : "Join"}
+              </Button>
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-3 bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-          <Input
-            placeholder="ENTER INVITE CODE"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            className="uppercase bg-slate-800/80 border-slate-700 text-slate-100 placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-blue-500/50 text-center font-mono text-lg tracking-widest h-12 rounded-xl"
-          />
-          <Button
-            onClick={handleJoinWorkspace}
-            disabled={!inviteCode.trim() || isCreating || isJoining}
-            className="w-full bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600 transition-all disabled:opacity-50 h-12 rounded-xl"
-          >
-            {isJoining ? "Initializing..." : "Initialize Connection"}
-          </Button>
-        </div>
-        
-        <div className="flex justify-center mt-2">
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout} 
-            className="text-slate-500 hover:text-red-400 text-xs transition-colors uppercase tracking-widest font-semibold"
-          >
-            Terminate Session
-          </Button>
-        </div>
       </div>
     </main>
   );
