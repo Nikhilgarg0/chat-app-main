@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import MessageBubble from "@/components/chat/MessageBubble";
 import { auth } from "@/lib/firebase";
+import { useSidebar } from "@/components/SidebarContext";
 
 const AI_COMMANDS = [
   { command: "/ask", description: "Ask AI a question about this conversation" },
@@ -27,6 +28,7 @@ export default function ChannelPage() {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const { messages, connected, sendMessage, sendTyping, typingUsers, refetchMessages } = useSocket(channelId as string);
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -197,12 +199,21 @@ export default function ChannelPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
       {/* Header - Glassmorphism */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
         <div className="flex items-center gap-2">
+          {!isSidebarOpen && (
+            <button 
+              onClick={toggleSidebar}
+              className="p-1 -ml-1 mr-1 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              title="Open Sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+          )}
           <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
-          <h2 className="text-[var(--text-primary)] font-display font-bold text-lg tracking-tight">{channelName}</h2>
+          <h2 className="text-[var(--text-primary)] font-display font-bold text-base lg:text-lg tracking-tight">{channelName}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 hidden sm:flex">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
             <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--success)]" : "bg-[var(--text-tertiary)] animate-pulse"}`}></div>
             <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "Connected" : "Syncing"}</span>
@@ -305,8 +316,8 @@ export default function ChannelPage() {
           )}
 
           {/* Input Bar */}
-          <div className="w-full flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] pr-[6px] transition-all relative z-10">
-            <div className="pl-3 py-1 flex-1 flex">
+          <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] pr-[4px] lg:pr-[6px] transition-all relative z-10">
+            <div className="pl-3 md:pl-4 py-1 flex-1 flex">
               <input
                 ref={inputRef}
                 placeholder="Message channel..."

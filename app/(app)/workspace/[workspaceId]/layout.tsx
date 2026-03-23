@@ -8,12 +8,14 @@ import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { pusherClient } from "@/lib/pusher";
 import { useTheme } from "@/components/ThemeProvider";
+import { useSidebar } from "@/components/SidebarContext";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { workspaceId, channelId } = useParams();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { isSidebarOpen, setIsSidebarOpen, toggleSidebar } = useSidebar();
   
   const [workspace, setWorkspace] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -137,25 +139,60 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden font-body">
+    <div className="flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden font-body relative">
+      
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in duration-200"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar - Apple Aesthetic */}
-      <div className="w-[260px] bg-[var(--bg-surface)] border-r border-[var(--border)] flex flex-col pt-4 relative z-20 shrink-0">
+      <div 
+        className={`fixed lg:relative z-40 h-full bg-[var(--bg-surface)] border-r border-[var(--border)] shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
+          ${isSidebarOpen 
+            ? "translate-x-0 w-[260px] shadow-[var(--shadow)] lg:shadow-none lg:w-[260px] lg:opacity-100" 
+            : "-translate-x-full w-[260px] lg:translate-x-0 lg:w-0 lg:opacity-0 lg:border-r-0"
+          }
+        `}
+      >
+        <div className="w-[260px] h-full flex flex-col pt-4 relative">
         
         {/* Workspace Brand Header */}
-        <div className="px-5 pb-4">
-          <div className="flex items-center gap-2.5 mb-2 cursor-pointer hover:opacity-80 transition-opacity">
-            <div className="w-6 h-6 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-[11px] shrink-0">
-              {workspace.name[0]?.toUpperCase()}
+        <div className="px-5 pb-4 flex items-start justify-between">
+          <div className="flex flex-col gap-2 min-w-0 pr-2">
+            <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="w-6 h-6 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-[11px] shrink-0">
+                {workspace.name[0]?.toUpperCase()}
+              </div>
+              <h2 className="font-display font-semibold text-[15px] truncate flex-1">{workspace.name}</h2>
+              <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
             </div>
-            <h2 className="font-display font-semibold text-[15px] truncate flex-1">{workspace.name}</h2>
-            <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
+            
+            <div className="flex items-center group cursor-pointer w-fit">
+              <span className="bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--border-strong)] transition-colors rounded-full px-2.5 py-0.5 text-[10px] font-mono text-[var(--text-secondary)]">
+                {workspace.inviteCode}
+              </span>
+            </div>
           </div>
+
+          <button 
+            onClick={toggleSidebar}
+            className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 hidden lg:flex"
+            title="Hide Sidebar"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
+          </button>
           
-          <div className="flex items-center group cursor-pointer">
-            <span className="bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--border-strong)] transition-colors rounded-full px-2.5 py-0.5 text-[10px] font-mono text-[var(--text-secondary)]">
-              {workspace.inviteCode}
-            </span>
-          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 lg:hidden flex"
+            title="Close Sidebar"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
         </div>
 
         {/* Scrollable List */}
@@ -255,9 +292,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </div>
+      </div>
 
       {/* Main Area */}
-      <div className="flex-1 flex flex-col relative w-full h-full bg-[var(--bg-base)]">
+      <div className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] transition-all duration-300 min-w-0">
         {children}
       </div>
     </div>
