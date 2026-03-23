@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { auth, provider } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { auth, signInWithGoogle } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,16 +27,17 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithGoogle();
+      const user = result.user;
       
       await fetch("/api/users/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firebaseUid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName || result.user.email?.split("@")[0],
-          avatarUrl: result.user.photoURL,
+          firebaseUid: user.uid,
+          email: user.email,
+          displayName: user.displayName || user.email?.split("@")[0],
+          avatarUrl: user.photoURL || ""
         }),
       });
       

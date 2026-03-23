@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     let user = await User.findOneAndUpdate(
       { firebaseUid },
-      { firebaseUid, email, displayName },
+      { firebaseUid, email, displayName, avatarUrl },
       { upsert: true, new: true }
     );
 

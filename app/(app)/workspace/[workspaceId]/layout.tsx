@@ -8,6 +8,7 @@ import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { pusherClient } from "@/lib/pusher";
 import { useTheme } from "@/components/ThemeProvider";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { workspaceId, channelId } = useParams();
@@ -225,8 +226,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {/* Bottom User Area */}
         <div className="p-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 truncate flex-1 min-w-0 pr-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--border-strong)] border border-[var(--border)] flex items-center justify-center text-[var(--text-primary)] text-xs font-bold shrink-0 shadow-sm cursor-pointer" onClick={handleLogout}>
-              {userProfile?.displayName?.[0]?.toUpperCase() || "?"}
+            <div className="cursor-pointer shrink-0" onClick={handleLogout}>
+              <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
             </div>
             <span className="text-sm font-medium text-[var(--text-primary)] truncate">{userProfile?.displayName || "Guest"}</span>
           </div>

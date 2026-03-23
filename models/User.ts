@@ -13,7 +13,7 @@ const userSchema = new Schema<IUser>({
   firebaseUid: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   displayName: { type: String, required: true },
-  avatarUrl: { type: String },
+  avatarUrl: { type: String, default: "" },
   workspaces: [{ type: String }],
   createdAt: { type: Date, default: Date.now }
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export default function MessageBubble({ message, isOwn, firebaseUid, onReact, isConsecutive }) {
   const isAI = message.type === "ai";
@@ -31,16 +32,12 @@ export default function MessageBubble({ message, isOwn, firebaseUid, onReact, is
             <span className="text-[10px] text-[var(--text-tertiary)] font-mono opacity-0 group-hover/message:opacity-100 transition-opacity select-none leading-relaxed mt-1">
               {message.time}
             </span>
-          ) : (
-            <div className={`w-[36px] h-[36px] rounded-[10px] flex flex-col items-center justify-center text-[12px] font-bold shrink-0 shadow-sm border ${
-              isAI 
-                ? "bg-[var(--bg-surface)] border-[var(--ai-accent)]/30 text-[var(--ai-accent)] shadow-[0_2px_8px_var(--ai-bg)]" 
-                : isOwn 
-                ? "bg-gradient-to-b from-[var(--accent)] to-[var(--accent-hover)] text-white border-transparent" 
-                : "bg-gradient-to-b from-[var(--bg-elevated)] to-[var(--bg-surface)] border-[var(--border)] text-[var(--text-primary)]"
-            }`}>
-              {isAI ? "AI" : message.author.substring(0, 2).toUpperCase()}
+          ) : isAI ? (
+            <div className="w-[36px] h-[36px] rounded-[10px] flex flex-col items-center justify-center text-[12px] font-bold shrink-0 shadow-sm border bg-[var(--bg-surface)] border-[var(--ai-accent)]/30 text-[var(--ai-accent)] shadow-[0_2px_8px_var(--ai-bg)]">
+              AI
             </div>
+          ) : (
+            <UserAvatar avatarUrl={message.avatarUrl} displayName={message.author} size={36} />
           )}
         </div>
 

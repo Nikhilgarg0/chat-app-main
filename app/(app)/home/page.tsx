@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { signOut } from "firebase/auth";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export default function HomePage() {
   const router = useRouter();
@@ -139,9 +140,7 @@ export default function HomePage() {
           <Button variant="ghost" className="text-[var(--text-secondary)] hover:text-red-400 text-sm h-8 px-3" onClick={handleLogout}>
             Logout
           </Button>
-          <div className="w-8 h-8 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-center font-medium text-xs text-[var(--text-primary)]">
-            {userProfile?.displayName?.[0]?.toUpperCase() || "?"}
-          </div>
+          <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
         </div>
       </nav>
 
