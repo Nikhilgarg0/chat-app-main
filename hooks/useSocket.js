@@ -5,6 +5,7 @@ import { pusherClient } from "@/lib/pusher";
 
 export function useSocket(channelId) {
   const [messages, setMessages] = useState([]);
+  const [typingUsers, setTypingUsers] = useState(new Set());
   const [connected, setConnected] = useState(false);
   const channelRef = useRef(null);
 
@@ -49,6 +50,15 @@ export function useSocket(channelId) {
       });
     });
 
+    channel.bind("client-typing", ({ username, isTyping }) => {
+      setTypingUsers((prev) => {
+        const next = new Set(prev);
+        if (isTyping) next.add(username);
+        else next.delete(username);
+        return next;
+      });
+    });
+
     // Also monitor global connection state
     const handleStateChange = (states) => {
       setConnected(states.current === "connected");
@@ -87,5 +97,13 @@ export function useSocket(channelId) {
     });
   };
 
-  return { messages, connected, sendMessage };
+  const sendTyping = (username, isTyping) => {
+    fetch("/api/pusher/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelId, username, isTyping }),
+    }).catch(() => {});
+  };
+
+  return { messages, connected, sendMessage, sendTyping, typingUsers: Array.from(typingUsers) };
 }

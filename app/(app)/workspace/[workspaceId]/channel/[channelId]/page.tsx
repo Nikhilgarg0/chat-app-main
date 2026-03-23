@@ -14,9 +14,10 @@ export default function ChannelPage() {
   const [username, setUsername] = useState("");
   const [messageInput, setMessageInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [channelName, setChannelName] = useState(channelId as string);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { messages, connected, sendMessage } = useSocket(channelId as string);
+  const { messages, connected, sendMessage, sendTyping, typingUsers } = useSocket(channelId as string);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -32,8 +33,23 @@ export default function ChannelPage() {
         }
       }
     });
+
+    const fetchChannelName = async () => {
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const channel = data.workspace?.channels?.find((c: any) => c._id === channelId);
+          if (channel) {
+            setChannelName(channel.name);
+          }
+        }
+      } catch (e) {}
+    };
+    fetchChannelName();
+
     return () => unsub();
-  }, []);
+  }, [workspaceId, channelId]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -41,10 +57,17 @@ export default function ChannelPage() {
     }, 100);
   }, [messages.length]);
 
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageInput(e.target.value);
+    sendTyping(username, e.target.value.length > 0);
+  };
+
   const handleSend = async () => {
     if (!messageInput.trim() || !username) return;
     const text = messageInput.trim();
     setMessageInput("");
+    sendTyping(username, false);
 
     if (text.startsWith("/ask ") || text.startsWith("/summarize") || text.startsWith("/todo")) {
       const parts = text.split(" ");
@@ -83,7 +106,7 @@ export default function ChannelPage() {
       <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700/60 bg-slate-800/80 backdrop-blur-md z-20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="px-3 py-1 bg-slate-700 text-slate-300 font-mono border-slate-600 truncate max-w-xs block">
-            #{channelId}
+            #{channelName}
           </Badge>
           <span className="text-xs text-slate-400 flex items-center gap-1">
             {connected ? (
@@ -134,6 +157,18 @@ export default function ChannelPage() {
              <span className="text-[10px] text-fuchsia-300 font-medium tracking-widest uppercase ml-1">Nexus AI is thinking...</span>
           </div>
         )}
+        
+        {typingUsers.filter(u => u !== username).length > 0 && (
+          <div className="flex items-center gap-2 p-2 bg-slate-800/20 rounded-xl rounded-bl-sm self-start max-w-[50%] animate-in fade-in zoom-in duration-300">
+             <div className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+             <div className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+             <div className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+             <span className="text-[10px] text-slate-400 font-medium tracking-widest ml-1 truncate">
+               {typingUsers.filter(u => u !== username).join(', ')} is typing...
+             </span>
+          </div>
+        )}
+        
         <div ref={bottomRef} className="h-4" />
       </div>
 
@@ -143,7 +178,7 @@ export default function ChannelPage() {
           <Input
             placeholder="Transmit message..."
             value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
+            onChange={handleMessageChange}
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent border-0 focus-visible:ring-0 text-slate-100 placeholder:text-slate-500 px-4 py-3 h-auto shadow-none text-base"
             autoFocus

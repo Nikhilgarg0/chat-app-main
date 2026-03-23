@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     await connectDB();
 
-    const contextMessages = await Message.find({ room: channelId })
+    const contextMessages = await Message.find({ channelId })
       .sort({ createdAt: -1 })
       .limit(50);
       
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 
     const message = await Message.create({
-      room: channelId,
+      channelId,
       author: "Nexus AI",
       content: aiResponseText,
       time,

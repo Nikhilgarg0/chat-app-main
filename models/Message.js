@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const MessageSchema = new mongoose.Schema({
-  room: { type: String, required: true, trim: true },
+  channelId: { type: String, required: true, trim: true },
   author: { type: String, required: true, trim: true },
   content: { type: String, required: true, trim: true },
   time: { type: String, required: true },

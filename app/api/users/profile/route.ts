@@ -15,17 +15,14 @@ export async function POST(req: Request) {
 
     await connectDB();
 
-    let user = await User.findOne({ firebaseUid });
-
-    if (!user) {
-      user = await User.create({
-        firebaseUid,
-        email,
-        displayName,
-        avatarUrl: avatarUrl || "",
-        workspaces: [],
-      });
-    }
+    let user = await User.findOneAndUpdate(
+      { firebaseUid },
+      { 
+        $set: { email, displayName },
+        $setOnInsert: { avatarUrl: avatarUrl || "", workspaces: [] }
+      },
+      { new: true, upsert: true }
+    );
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
