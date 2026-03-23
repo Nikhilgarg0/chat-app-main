@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Chat App",
-  description: "Real-time chat",
+  title: "NEXUS",
+  description: "Complete platform",
 };
 
 export default function RootLayout({ children }) {

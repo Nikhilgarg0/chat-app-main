@@ -7,9 +7,9 @@ export async function GET(req) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
-    const channelId = searchParams.get("channelId") || searchParams.get("room") || "general";
+    const channelId = searchParams.get("channelId");
 
-    const messages = await Message.find({ room: channelId })
+    const messages = await Message.find({ channelId })
       .sort({ createdAt: 1 })
       .limit(50);
 
@@ -26,8 +26,7 @@ export async function POST(req) {
   try {
     await connectDB();
     const body = await req.json();
-    const channelId = body.channelId || body.room;
-    const { author, content, time, msgId } = body;
+    const { channelId, author, content, time, msgId } = body;
 
     if (!channelId || !author || !content || !time) {
       return NextResponse.json(
@@ -36,7 +35,7 @@ export async function POST(req) {
       );
     }
 
-    const message = await Message.create({ room: channelId, author, content, time, msgId });
+    const message = await Message.create({ channelId, author, content, time, msgId });
 
     try {
       await pusherServer.trigger(`chat-${channelId}`, "new-message", {

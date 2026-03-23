@@ -3,19 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { pusherClient } from "@/lib/pusher";
 
-export function useSocket(room) {
+export function useSocket(channelId) {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
   const channelRef = useRef(null);
 
   useEffect(() => {
-    if (!room) return;
+    if (!channelId) return;
 
     let active = true;
 
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`/api/messages?room=${room}`);
+        const res = await fetch(`/api/messages?channelId=${channelId}`);
         const data = await res.json();
         if (data.success && active) {
           setMessages(data.messages);
@@ -27,7 +27,7 @@ export function useSocket(room) {
 
     fetchHistory();
 
-    const channelName = `chat-${room}`;
+    const channelName = `chat-${channelId}`;
     const channel = pusherClient.subscribe(channelName);
     channelRef.current = channel;
 
@@ -61,7 +61,7 @@ export function useSocket(room) {
       channel.unsubscribe();
       pusherClient.connection.unbind("state_change", handleStateChange);
     };
-  }, [room]);
+  }, [channelId]);
 
   const sendMessage = async (author, content) => {
     if (!content.trim()) return;
@@ -72,7 +72,7 @@ export function useSocket(room) {
     });
 
     const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    const messageData = { room, author, content, time, msgId };
+    const messageData = { channelId, author, content, time, msgId };
 
     // Optimistic UI update
     setMessages((prev) => [...prev, messageData]);

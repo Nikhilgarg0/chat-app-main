@@ -18,15 +18,15 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
 
   useEffect(() => {
-    const fetchContext = async () => {
-      if (!auth.currentUser) {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
         router.push("/login");
         return;
       }
 
       try {
         const [profRes, wsRes] = await Promise.all([
-          fetch(`/api/users/profile?firebaseUid=${auth.currentUser.uid}`),
+          fetch(`/api/users/profile?firebaseUid=${user.uid}`),
           fetch(`/api/workspaces/${workspaceId}`)
         ]);
 
@@ -46,11 +46,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       } finally {
         setLoading(false);
       }
-    };
-
-    const unsub = auth.onAuthStateChanged((user) => {
-      if (!user) router.push("/login");
-      else fetchContext();
     });
 
     return () => unsub();

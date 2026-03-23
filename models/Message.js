@@ -6,9 +6,10 @@ const MessageSchema = new mongoose.Schema({
   content: { type: String, required: true, trim: true },
   time: { type: String, required: true },
   msgId: { type: String, index: true },
+  type: { type: String, default: "text", enum: ["text", "ai", "system"] },
 }, { timestamps: true });
 
 const Message =
   mongoose.models.Message || mongoose.model("Message", MessageSchema);
 
-export default Message;
+export default Message; 

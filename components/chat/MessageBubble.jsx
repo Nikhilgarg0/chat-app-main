@@ -1,6 +1,8 @@
 "use client";
 
 export default function MessageBubble({ message, isOwn }) {
+  const isAI = message.type === "ai";
+
   return (
     <div
       className={`flex flex-col max-w-[75%] gap-1.5 animate-[fadeInUp_0.3s_ease-out] ${
@@ -8,8 +10,8 @@ export default function MessageBubble({ message, isOwn }) {
       }`}
     >
       <div className={`flex items-baseline gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-        <span className="text-[11px] font-semibold text-slate-300 tracking-wide">
-          {isOwn ? "You" : message.author}
+        <span className={`text-[11px] font-semibold tracking-wide ${isAI ? "text-fuchsia-400" : "text-slate-300"}`}>
+          {isOwn ? "You" : isAI ? "✦ Nexus AI" : message.author}
         </span>
         <span className="text-[10px] text-slate-400 font-medium">{message.time}</span>
       </div>
@@ -17,6 +19,8 @@ export default function MessageBubble({ message, isOwn }) {
         className={`px-5 py-3 shadow-md text-[15px] leading-relaxed break-words ${
           isOwn
             ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm shadow-blue-500/20"
+            : isAI
+            ? "bg-gradient-to-br from-fuchsia-600 to-purple-700 text-white rounded-2xl rounded-tl-sm shadow-purple-500/20 border-0"
             : "bg-slate-700 text-slate-100 rounded-2xl rounded-tl-sm border border-slate-600 shadow-black/10"
         }`}
       >

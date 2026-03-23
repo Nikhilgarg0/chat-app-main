@@ -11,6 +11,7 @@ import { signOut } from "firebase/auth";
 export default function HomePage() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Forms
@@ -27,9 +28,22 @@ export default function HomePage() {
         return; 
       }
       try {
-        const res = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
-        const data = await res.json();
-        setUserProfile(data.user);
+        const [profRes, wsRes] = await Promise.all([
+          fetch(`/api/users/profile?firebaseUid=${user.uid}`),
+          fetch(`/api/workspaces?firebaseUid=${user.uid}`)
+        ]);
+
+        if (profRes.ok) {
+          const profData = await profRes.json();
+          setUserProfile(profData.user);
+        }
+
+        if (wsRes.ok) {
+          const wsData = await wsRes.json();
+          if (wsData.success) {
+            setWorkspaces(wsData.workspaces);
+          }
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -135,6 +149,32 @@ export default function HomePage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-xl animate-[bounce_0.3s_ease-in-out]">
             <p className="text-red-400 text-xs text-center font-medium">{error}</p>
+          </div>
+        )}
+
+        {workspaces.length > 0 && (
+          <div className="space-y-3 mb-2">
+            <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold flex items-center justify-between">
+              <span>Your Workspaces</span>
+              <Badge variant="outline" className="text-xs py-0 px-2 bg-slate-800 border-slate-700">{workspaces.length}</Badge>
+            </div>
+            <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-1 scroll-smooth [&::-webkit-scrollbar]:hidden">
+              {workspaces.map((ws: any) => (
+                <div key={ws._id} className="flex items-center justify-between bg-slate-900/50 p-3 rounded-2xl border border-slate-800 group hover:border-slate-700 transition-colors">
+                  <div className="flex flex-col overflow-hidden mr-3">
+                    <span className="text-sm font-bold text-slate-200 truncate">{ws.name}</span>
+                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">Code: {ws.inviteCode}</span>
+                  </div>
+                  <Button 
+                    size="sm"
+                    onClick={() => router.push(`/workspace/${ws._id}`)}
+                    className="shrink-0 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/20 transition-all rounded-lg text-xs h-8 px-3"
+                  >
+                    Enter
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

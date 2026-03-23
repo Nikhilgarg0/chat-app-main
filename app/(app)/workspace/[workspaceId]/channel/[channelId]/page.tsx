@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/firebase";
 
 export default function ChannelPage() {
-  const { channelId } = useParams();
+  const { channelId, workspaceId } = useParams();
   const [username, setUsername] = useState("");
   const [messageInput, setMessageInput] = useState("");
+  const [isThinking, setIsThinking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { messages, connected, sendMessage } = useSocket(channelId as string);
@@ -40,10 +41,36 @@ export default function ChannelPage() {
     }, 100);
   }, [messages.length]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!messageInput.trim() || !username) return;
-    sendMessage(username, messageInput.trim());
+    const text = messageInput.trim();
     setMessageInput("");
+
+    if (text.startsWith("/ask ") || text.startsWith("/summarize") || text.startsWith("/todo")) {
+      const parts = text.split(" ");
+      const command = parts[0].substring(1);
+      const arg = parts.slice(1).join(" ");
+      
+      setIsThinking(true);
+      try {
+        await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            command,
+            messages: arg,
+            channelId,
+            workspaceId
+          })
+        });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsThinking(false);
+      }
+    } else {
+      sendMessage(username, text);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -99,6 +126,14 @@ export default function ChannelPage() {
             isOwn={msg.author === username}
           />
         ))}
+        {isThinking && (
+          <div className="flex animate-pulse items-center gap-2 p-2 bg-slate-800/40 rounded-xl rounded-bl-sm self-start max-w-[50%]">
+             <div className="w-1.5 h-1.5 bg-fuchsia-400 rounded-full"></div>
+             <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+             <div className="w-1.5 h-1.5 bg-fuchsia-600 rounded-full"></div>
+             <span className="text-[10px] text-fuchsia-300 font-medium tracking-widest uppercase ml-1">Nexus AI is thinking...</span>
+          </div>
+        )}
         <div ref={bottomRef} className="h-4" />
       </div>
 
