@@ -11,6 +11,7 @@ export interface IWorkspace extends Document {
   ownerId: string;
   members: IWorkspaceMember[];
   inviteCode: string;
+  channels: mongoose.Types.ObjectId[];
   createdAt: Date;
 }
 
@@ -25,6 +26,7 @@ const workspaceSchema = new Schema<IWorkspace>({
   ownerId: { type: String, required: true },
   members: [workspaceMemberSchema],
   inviteCode: { type: String, required: true, unique: true },
+  channels: [{ type: Schema.Types.ObjectId, ref: 'Channel' }],
   createdAt: { type: Date, default: Date.now }
 });
 

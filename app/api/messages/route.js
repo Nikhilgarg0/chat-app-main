@@ -7,9 +7,9 @@ export async function GET(req) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
-    const room = searchParams.get("room") || "general";
+    const channelId = searchParams.get("channelId") || searchParams.get("room") || "general";
 
-    const messages = await Message.find({ room })
+    const messages = await Message.find({ room: channelId })
       .sort({ createdAt: 1 })
       .limit(50);
 
@@ -26,20 +26,21 @@ export async function POST(req) {
   try {
     await connectDB();
     const body = await req.json();
-    const { room, author, content, time, msgId } = body;
+    const channelId = body.channelId || body.room;
+    const { author, content, time, msgId } = body;
 
-    if (!room || !author || !content || !time) {
+    if (!channelId || !author || !content || !time) {
       return NextResponse.json(
         { success: false, error: "All fields are required" },
         { status: 400 }
       );
     }
 
-    const message = await Message.create({ room, author, content, time, msgId });
+    const message = await Message.create({ room: channelId, author, content, time, msgId });
 
     try {
-      await pusherServer.trigger(`chat-${room}`, "new-message", {
-        room,
+      await pusherServer.trigger(`chat-${channelId}`, "new-message", {
+        channelId,
         author,
         content,
         time,

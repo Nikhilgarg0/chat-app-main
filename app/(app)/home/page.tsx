@@ -21,29 +21,23 @@ export default function HomePage() {
   const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async (uid: string) => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) { 
+        router.push("/login"); 
+        return; 
+      }
       try {
-        const res = await fetch(`/api/users/profile?firebaseUid=${uid}`);
-        if (res.ok) {
-          const data = await res.json();
-          setUserProfile(data.user);
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
+        const res = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
+        const data = await res.json();
+        setUserProfile(data.user);
+      } catch (e) {
+        console.error(e);
       } finally {
         setLoading(false);
       }
-    };
-
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        fetchProfile(user.uid);
-      } else {
-        router.push("/login");
-      }
     });
 
-    return () => unsubscribe();
+    return () => unsub();
   }, [router]);
 
   const handleCreateWorkspace = async () => {
@@ -109,7 +103,7 @@ export default function HomePage() {
     }
   };
 
-  if (loading || !userProfile) {
+  if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
@@ -131,7 +125,7 @@ export default function HomePage() {
           Dashboard
         </Badge>
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-md mb-3">
-          Welcome, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">{userProfile.displayName}</span>
+          Welcome, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">{userProfile?.displayName || "Guest"}</span>
         </h1>
         <p className="text-base text-slate-400">Join an existing network or deploy a new secure workspace.</p>
       </div>

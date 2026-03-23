@@ -10,14 +10,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (!auth.currentUser) {
+        router.push("/login");
+      }
+    }, 3000);
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      clearTimeout(timeoutId);
       if (!currentUser) {
         router.push("/login");
       } else {
         setLoading(false);
       }
     });
-    return () => unsubscribe();
+    
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [router]);
 
   if (loading) {

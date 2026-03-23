@@ -60,8 +60,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
+    console.error("Profile GET Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error?.message || "Internal Server Error" },
       { status: 500 }
     );
   }
