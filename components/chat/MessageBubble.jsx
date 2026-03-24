@@ -1,115 +1,451 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import UserAvatar from "@/components/ui/UserAvatar";
 
-export default function MessageBubble({ message, isOwn, firebaseUid, onReact, isConsecutive }) {
-  const isAI = message.type === "ai";
-  const [showPicker, setShowPicker] = useState(false);
-  const emojis = ["👍", "❤️", "😂", "🔥", "🎉"];
+const PRIMARY_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉"];
+const EXTRA_EMOJIS = ["😮", "😢", "👏", "🎊", "💯"];
+const SWIPE_THRESHOLD = 60;   // px to trigger reply
+const SWIPE_MAX = 80;   // max visual travel
 
+export default function MessageBubble({
+  message,
+  isOwn,
+  isGrouped,
+  firebaseUid,
+  onReact,
+  onDelete,
+  onReply,
+  username,
+}) {
+  const isAI = message.type === "ai";
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAbove, setMenuAbove] = useState(true);
+  const [showExtraEmojis, setShowExtraEmojis] = useState(false);
+  const [rowHovered, setRowHovered] = useState(false);
+
+  // Swipe state
+  const [swipeDx, setSwipeDx] = useState(0);   // current visual offset
+  const [swipeSpring, setSwipeSpring] = useState(false); // spring-back transition
+
+  const menuRef = useRef(null);
+  const bubbleRef = useRef(null);
+  const longPressRef = useRef(null);
+
+  // Swipe tracking refs (not state, to avoid re-renders during drag)
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const swipeActive = useRef(false);
+  const replyFired = useRef(false);
+
+  // ── Context-menu open ───────────────────────────────────────────────────────
+  const openMenu = useCallback((clientY) => {
+    setMenuAbove(clientY > window.innerHeight / 2);
+    setShowExtraEmojis(false);
+    setMenuOpen(true);
+  }, []);
+
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    openMenu(e.clientY);
+  }, [openMenu]);
+
+  // ── Long-press (mobile) — separate from swipe ───────────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    const t = e.touches[0];
+    touchStartX.current = t.clientX;
+    touchStartY.current = t.clientY;
+    swipeActive.current = false;
+    replyFired.current = false;
+
+    longPressRef.current = setTimeout(() => {
+      if (!swipeActive.current) openMenu(t.clientY);
+    }, 500);
+  }, [openMenu]);
+
+  // ── Swipe move ──────────────────────────────────────────────────────────────
+  const handleTouchMove = useCallback((e) => {
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+
+    // Cancel long-press the moment user moves
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+    }
+
+    // Only count as a swipe if predominantly horizontal and going RIGHT
+    if (dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      swipeActive.current = true;
+      e.preventDefault(); // prevent scroll
+      const clamped = Math.min(dx, SWIPE_MAX);
+      setSwipeDx(clamped);
+      setSwipeSpring(false);
+    }
+  }, []);
+
+  // ── Swipe end ───────────────────────────────────────────────────────────────
+  const handleTouchEnd = useCallback(() => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+
+    if (swipeActive.current && swipeDx >= SWIPE_THRESHOLD && !replyFired.current) {
+      replyFired.current = true;
+      onReply?.(message);
+    }
+
+    // Spring back
+    setSwipeSpring(true);
+    setSwipeDx(0);
+    swipeActive.current = false;
+  }, [swipeDx, message, onReply]);
+
+  // ── Close context-menu on outside tap ──────────────────────────────────────
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+    };
+  }, [menuOpen]);
+
+  // ── Action handlers ─────────────────────────────────────────────────────────
   const handleReact = (emoji) => {
     if (!message._id || !onReact) return;
     onReact(message._id, emoji);
-    setShowPicker(false);
+    setMenuOpen(false);
   };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content || "");
+    setMenuOpen(false);
+    if (onReply?.__showToast) onReply.__showToast("Copied!");
+  };
+
+  const handleDelete = () => { setMenuOpen(false); onDelete?.(message._id); };
+  const handleReplyClick = () => { setMenuOpen(false); onReply?.(message); };
 
   const reactionEntries = message.reactions ? Object.entries(message.reactions) : [];
 
-  return (
+  const nameColor = isAI ? "var(--ai-accent)" : isOwn ? "var(--accent)" : "var(--text-primary)";
+  const displayName = isAI ? "✦ Nexus AI" : isOwn ? (username || message.author) : message.author;
+  // Always work with a plain string — guards against array/object content
+  const contentStr = String(message.content ?? "");
+
+  // ── Context menu ────────────────────────────────────────────────────────────
+  const ContextMenu = () => (
     <div
-      className={`flex flex-col animate-slide-up relative group/message w-full hover:bg-[var(--bg-elevated)] hover:bg-opacity-50 px-4 py-[6px] transition-colors rounded-[12px] ${
-        isConsecutive ? "mt-0" : "mt-2"
-      }`}
-      onMouseEnter={() => setShowPicker(true)}
-      onMouseLeave={() => setShowPicker(false)}
+      ref={menuRef}
+      style={{
+        position: "absolute",
+        [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
+        left: 0, zIndex: 200,
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 16,
+        boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+        backdropFilter: "blur(20px)",
+        overflow: "hidden",
+        minWidth: 200,
+        animation: "ctxFadeIn 0.14s ease",
+      }}
     >
-      <div className="flex items-start gap-4 max-w-full">
-        
-        {/* Avatar Area */}
-        <div className="w-9 flex justify-end shrink-0 pt-0.5">
-          {isConsecutive ? (
-            <span className="text-[10px] text-[var(--text-tertiary)] font-mono opacity-0 group-hover/message:opacity-100 transition-opacity select-none leading-relaxed mt-1">
-              {message.time}
-            </span>
-          ) : isAI ? (
-            <div className="w-[36px] h-[36px] rounded-[10px] flex flex-col items-center justify-center text-[12px] font-bold shrink-0 shadow-sm border bg-[var(--bg-surface)] border-[var(--ai-accent)]/30 text-[var(--ai-accent)] shadow-[0_2px_8px_var(--ai-bg)]">
-              AI
-            </div>
-          ) : (
-            <UserAvatar avatarUrl={message.avatarUrl} displayName={message.author} size={36} />
-          )}
+      <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
+        {(showExtraEmojis ? EXTRA_EMOJIS : PRIMARY_EMOJIS).map((emoji) => (
+          <EmojiBtn key={emoji} emoji={emoji} onClick={() => handleReact(emoji)} />
+        ))}
+        <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
+      </div>
+      <div style={{ padding: "4px 0" }}>
+        <ActionItem icon="↩" label="Reply" onClick={handleReplyClick} />
+        <ActionItem icon="📋" label="Copy" onClick={handleCopy} />
+        {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={handleDelete} danger />}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <style>{`
+        @keyframes ctxFadeIn {
+          from { opacity:0; transform:scale(0.95) translateY(4px); }
+          to   { opacity:1; transform:scale(1)   translateY(0); }
+        }
+      `}</style>
+
+      {/* Outer wrapper */}
+      <div
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          marginTop: isGrouped ? 2 : 16,
+        }}
+      >
+        {/* ── Reply icon that appears from the left as user swipes ── */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: -40,
+            top: "50%",
+            transform: `translateY(-50%) scale(${Math.min(swipeDx / SWIPE_THRESHOLD, 1)})`,
+            opacity: swipeDx / SWIPE_THRESHOLD,
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: "var(--accent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
+            fontSize: 15,
+            transition: swipeSpring ? "transform 0.2s ease, opacity 0.2s ease" : "none",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}
+        >
+          ↩
         </div>
 
-        {/* Message Content Area */}
-        <div className="flex-1 min-w-0 pb-[2px]">
-          {!isConsecutive && (
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className={`text-[14px] font-semibold tracking-tight ${isAI ? "text-[var(--ai-accent)]" : "text-[var(--text-primary)]"}`}>
-                {isAI ? "Nexus AI" : message.author}
-              </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-                {message.time}
-              </span>
+        {/* ── The actual message row (slides right on swipe) ── */}
+        <div
+          ref={bubbleRef}
+          onContextMenu={handleContextMenu}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseEnter={() => setRowHovered(true)}
+          onMouseLeave={() => setRowHovered(false)}
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 12,
+            padding: "2px 16px",
+            borderRadius: 4,
+            background: rowHovered ? "var(--bg-elevated)" : "transparent",
+            transition: swipeSpring
+              ? "transform 0.2s ease, background 0.1s"
+              : "background 0.1s",
+            transform: `translateX(${swipeDx}px)`,
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            position: "relative",
+          }}
+        >
+          {/* ── Avatar column — hidden for grouped messages ── */}
+          {!isGrouped ? (
+            <div style={{ width: 36, flexShrink: 0, paddingTop: 2 }}>
+              {isAI
+                ? (
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    border: "1px solid color-mix(in srgb, var(--ai-accent) 40%, transparent)",
+                    color: "var(--ai-accent)", background: "var(--bg-surface)",
+                  }}>AI</div>
+                )
+                : <UserAvatar avatarUrl={message.avatarUrl} displayName={message.author} size={36} />
+              }
+            </div>
+          ) : (
+            /* Grouped: no avatar, just the hover-timestamp in a fixed-width phantom */
+            <div style={{ width: 36, flexShrink: 0 }}>
+              {rowHovered && (
+                <span style={{
+                  fontSize: 10, color: "var(--text-tertiary)", fontFamily: "monospace",
+                  display: "block", textAlign: "right", marginTop: 4, lineHeight: 1,
+                }}>
+                  {message.time}
+                </span>
+              )}
             </div>
           )}
 
-          <div className="relative mt-0.5">
-            {isAI ? (
-              <div className="w-full bg-[var(--ai-bg)] border-l-2 border-[var(--ai-accent)] rounded-none rounded-r-[12px] px-[16px] py-[14px] text-[var(--text-primary)] text-[15px] leading-[1.6]">
-                <div className="text-[var(--ai-accent)] text-[11px] font-semibold mb-2 tracking-wider">✦ NEXUS AI</div>
-                {message.content}
-              </div>
-            ) : isOwn ? (
-              <div className="w-full bg-transparent border-l-[3px] border-[var(--accent)]/50 pl-[16px] text-[var(--text-primary)] opacity-90 text-[15px] leading-[1.6] py-0.5">
-                {message.content}
-              </div>
-            ) : (
-              <div className="w-full bg-transparent text-[var(--text-primary)] text-[15px] leading-[1.6] py-0.5">
-                {message.content}
+          {/* ── Content column ── */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+
+            {/* Header (name + time) — first message in group only */}
+            {!isGrouped && (
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: nameColor, lineHeight: 1 }}>
+                  {displayName}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
+                  {message.time}
+                </span>
               </div>
             )}
 
-            {/* Floating Picker */}
-            {showPicker && message._id && (
-              <div className="absolute -top-8 right-0 flex items-center bg-[var(--bg-surface)] border border-[var(--border)] rounded-full px-2 py-1 shadow-apple z-10 gap-1 lg:-right-4 animate-in fade-in zoom-in duration-200">
-                {emojis.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReact(emoji)}
-                    className="hover:scale-125 hover:-translate-y-1 transition-transform text-[15px] select-none p-1 block"
+            {/* ── Reply-to quote block ── */}
+            {message.replyTo?.author && (
+              <div style={{
+                borderLeft: "2px solid var(--accent)",
+                background: "var(--bg-elevated)",
+                borderRadius: "0 4px 4px 0",
+                padding: "4px 8px",
+                marginBottom: 4,
+                cursor: "default",
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", marginBottom: 1 }}>
+                  {message.replyTo.author}
+                </div>
+                <div style={{
+                  fontSize: 12, color: "var(--text-secondary)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  maxWidth: "100%",
+                }}>
+                  {String(message.replyTo.content ?? "").slice(0, 60)}
+                  {String(message.replyTo.content ?? "").length > 60 ? "…" : ""}
+                </div>
+              </div>
+            )}
+
+            {/* ── Message body ── */}
+            <div style={{ position: "relative" }}>
+              {isAI ? (
+                <div style={{
+                  borderLeft: "3px solid var(--ai-accent)",
+                  background: "var(--ai-bg)",
+                  borderRadius: "0 8px 8px 0",
+                  padding: "10px 12px",
+                  fontSize: 15, lineHeight: 1.5, color: "var(--text-primary)",
+                }}>
+                  <ReactMarkdown
+                    components={{
+                      strong: ({ children }) => <strong style={{ fontWeight: 600, color: "var(--text-primary)" }}>{children}</strong>,
+                      p: ({ children }) => <p style={{ margin: "0 0 8px 0", lineHeight: 1.5 }}>{children}</p>,
+                      ul: ({ children }) => <ul style={{ paddingLeft: 16, margin: "6px 0" }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ paddingLeft: 16, margin: "6px 0" }}>{children}</ol>,
+                      li: ({ children }) => <li style={{ margin: "3px 0" }}>{children}</li>,
+                    }}
                   >
-                    {emoji}
-                  </button>
-                ))}
+                    {contentStr}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p style={{ fontSize: 15, lineHeight: 1.5, color: "var(--text-primary)", margin: 0, wordBreak: "break-word" }}>
+                  {contentStr}
+                </p>
+              )}
+
+              {/* Context menu */}
+              {menuOpen && <ContextMenu />}
+
+              {/* ── Desktop reply button (shows on row hover, right side) ── */}
+              {rowHovered && !menuOpen && (
+                <button
+                  onClick={handleReplyClick}
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 8px",
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    // Hide on touch devices
+                    "@media (hover: none)": { display: "none" },
+                  }}
+                  className="hidden sm:flex"     // Tailwind: hide on tiny screens
+                >
+                  <span>↩</span>
+                  <span>Reply</span>
+                </button>
+              )}
+            </div>
+
+            {/* ── Reactions ── */}
+            {reactionEntries.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {reactionEntries.map(([emoji, users]) => {
+                  const hasReacted = users.includes(firebaseUid);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReact(emoji)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        padding: "2px 8px", borderRadius: 999,
+                        border: `1px solid ${hasReacted ? "var(--accent)" : "var(--border)"}`,
+                        background: "var(--bg-elevated)",
+                        color: hasReacted ? "var(--accent)" : "var(--text-secondary)",
+                        fontSize: 13, cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      <span>{emoji}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500 }}>{users.length}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
-
-          {/* Reaction Bar beneath text */}
-          {reactionEntries.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {reactionEntries.map(([emoji, users]) => {
-                const hasReacted = users.includes(firebaseUid);
-                return (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReact(emoji)}
-                    className={`flex items-center gap-1.5 text-[12px] px-2.5 py-[3px] rounded-full border transition-colors ${
-                      hasReacted 
-                        ? "bg-[var(--accent-glow)] border-[var(--accent)]/40 text-[var(--accent)] hover:bg-[var(--accent)]/20" 
-                        : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
-                    }`}
-                  >
-                    <span>{emoji}</span>
-                    <span className="font-medium text-[10px]">{users.length}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+// ── Small helpers ───────────────────────────────────────────────────────────────
+function EmojiBtn({ emoji, onClick, small }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: 36, height: 36,
+        fontSize: small ? 13 : 20,
+        fontWeight: small ? 600 : 400,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        borderRadius: 8, border: "none",
+        background: hov ? "var(--bg-elevated)" : "transparent",
+        color: small ? "var(--text-tertiary)" : "inherit",
+        cursor: "pointer",
+        transform: (!small && hov) ? "scale(1.25) translateY(-2px)" : "scale(1)",
+        transition: "transform 0.15s, background 0.1s",
+      }}
+    >
+      {emoji}
+    </button>
+  );
+}
+
+function ActionItem({ icon, label, onClick, danger = false }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: "100%", height: 44,
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "0 16px", border: "none",
+        background: hov ? "var(--bg-elevated)" : "transparent",
+        color: danger ? "#ff3b30" : "var(--text-primary)",
+        fontSize: 14, cursor: "pointer", textAlign: "left",
+        transition: "background 0.12s",
+      }}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
+      <span>{label}</span>
+    </button>
   );
 }

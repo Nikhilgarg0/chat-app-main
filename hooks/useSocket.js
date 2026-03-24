@@ -69,6 +69,10 @@ export function useSocket(channelId) {
       );
     });
 
+    channel.bind("message-deleted", (data) => {
+      setMessages((prev) => prev.filter((msg) => msg._id !== data.messageId));
+    });
+
     // Also monitor global connection state
     const handleStateChange = (states) => {
       setConnected(states.current === "connected");
@@ -82,7 +86,7 @@ export function useSocket(channelId) {
     };
   }, [channelId]);
 
-  const sendMessage = async (author, content) => {
+  const sendMessage = async (author, content, replyTo = null) => {
     if (!content.trim()) return;
 
     const time = new Date().toLocaleTimeString([], {
@@ -91,7 +95,7 @@ export function useSocket(channelId) {
     });
 
     const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    const messageData = { channelId, author, content, time, msgId };
+    const messageData = { channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}) };
 
     // Optimistic UI update
     setMessages((prev) => [...prev, messageData]);
@@ -114,5 +118,5 @@ export function useSocket(channelId) {
     }).catch(() => {});
   };
 
-  return { messages, connected, sendMessage, sendTyping, typingUsers, refetchMessages };
+  return { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages };
 }

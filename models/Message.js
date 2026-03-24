@@ -8,6 +8,11 @@ const MessageSchema = new mongoose.Schema({
   msgId: { type: String, index: true },
   type: { type: String, default: "text", enum: ["text", "ai", "system"] },
   reactions: { type: Map, of: [String], default: {} },
+  replyTo: {
+    author:  { type: String },
+    content: { type: String },
+    msgId:   { type: String },
+  },
 }, { timestamps: true });
 
 const Message =

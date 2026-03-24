@@ -16,7 +16,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { isSidebarOpen, setIsSidebarOpen, toggleSidebar } = useSidebar();
-  
+
   const [workspace, setWorkspace] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -24,6 +24,31 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [showChannelInput, setShowChannelInput] = useState(false);
+
+  const [touchStartX, setTouchStartX] = useState(0);
+  const [touchEndX, setTouchEndX] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX || !touchEndX) return;
+    const distance = touchStartX - touchEndX;
+
+    if (distance > 50 && isSidebarOpen) {
+      setIsSidebarOpen(false);
+    }
+    if (distance < -50 && !isSidebarOpen && touchStartX < 30) {
+      setIsSidebarOpen(true);
+    }
+    setTouchStartX(0);
+    setTouchEndX(0);
+  };
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -68,11 +93,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId, username: uname, status: "online" })
-    }).catch(() => {});
+    }).catch(() => { });
 
     const presenceChannel = `workspace-${workspaceId}`;
     const channel = pusherClient.subscribe(presenceChannel);
-    
+
     channel.bind("presence-update", ({ username, status }: { username: string, status: string }) => {
       setOnlineUsers((prev) => {
         const next = new Set(prev);
@@ -87,7 +112,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, username: uname, status: "offline" })
-      }).catch(() => {});
+      }).catch(() => { });
       channel.unbind_all();
       channel.unsubscribe();
     };
@@ -97,7 +122,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     try {
       await signOut(auth);
       router.push("/login");
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleCreateChannel = async () => {
@@ -139,160 +164,164 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden font-body relative">
-      
+    <div
+      className="flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden font-body relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+
       {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in duration-200"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar - Apple Aesthetic */}
-      <div 
+      <div
         className={`fixed lg:relative z-40 h-full bg-[var(--bg-surface)] border-r border-[var(--border)] shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
-          ${isSidebarOpen 
-            ? "translate-x-0 w-[80vw] max-w-[300px] shadow-[var(--shadow)] lg:shadow-none lg:w-[240px] lg:opacity-100" 
+          ${isSidebarOpen
+            ? "translate-x-0 w-[80vw] max-w-[300px] shadow-[var(--shadow)] lg:shadow-none lg:w-[240px] lg:opacity-100"
             : "-translate-x-full w-[80vw] max-w-[300px] lg:translate-x-0 lg:w-0 lg:opacity-0 lg:border-r-0"
           }
         `}
       >
         <div className="w-[80vw] max-w-[300px] lg:w-[240px] h-full flex flex-col pt-4 relative">
-        
-        {/* Workspace Brand Header */}
-        <div className="px-5 pb-4 flex items-start justify-between">
-          <div className="flex flex-col gap-2 min-w-0 pr-2">
-            <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="w-6 h-6 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-[11px] shrink-0">
-                {workspace.name[0]?.toUpperCase()}
+
+          {/* Workspace Brand Header */}
+          <div className="px-5 pb-4 flex items-start justify-between">
+            <div className="flex flex-col gap-2 min-w-0 pr-2">
+              <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
+                <div className="w-6 h-6 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-[11px] shrink-0">
+                  {workspace.name[0]?.toUpperCase()}
+                </div>
+                <h2 className="font-display font-semibold text-[15px] truncate flex-1">{workspace.name}</h2>
+                <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
               </div>
-              <h2 className="font-display font-semibold text-[15px] truncate flex-1">{workspace.name}</h2>
-              <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
-            
-            <div className="flex items-center group cursor-pointer w-fit">
-              <span className="bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--border-strong)] transition-colors rounded-full px-2.5 py-0.5 text-[10px] font-mono text-[var(--text-secondary)]">
-                {workspace.inviteCode}
-              </span>
-            </div>
-          </div>
 
-          <button 
-            onClick={toggleSidebar}
-            className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 hidden lg:flex"
-            title="Hide Sidebar"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
-          </button>
-          
-          <button 
-            onClick={() => setIsSidebarOpen(false)}
-            className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 lg:hidden flex"
-            title="Close Sidebar"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-          </button>
-        </div>
+              <div className="flex items-center group cursor-pointer w-fit">
+                <span className="bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--border-strong)] transition-colors rounded-full px-2.5 py-0.5 text-[10px] font-mono text-[var(--text-secondary)]">
+                  {workspace.inviteCode}
+                </span>
+              </div>
+            </div>
 
-        {/* Scrollable List */}
-        <div className="flex-1 overflow-y-auto pt-2 pb-4 scroll-smooth [&::-webkit-scrollbar]:hidden">
-          
-          <div className="flex items-center justify-between px-5 mb-1.5">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wider">CHANNELS</span>
-            <button 
-              onClick={() => setShowChannelInput(!showChannelInput)} 
-              className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors p-1"
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 hidden lg:flex"
+              title="Hide Sidebar"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
+            </button>
+
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 lg:hidden flex"
+              title="Close Sidebar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
           </div>
 
-          <div className="px-3 space-y-0.5 relative">
-            {workspace.channels?.map((ch: any) => {
-              const isActive = ch._id === channelId;
-              return (
-                <Link 
-                  key={ch._id} 
-                  href={`/workspace/${workspace._id}/channel/${ch._id}`}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={`flex items-center px-3 py-1.5 min-h-[48px] lg:min-h-[32px] text-[14px] rounded-lg transition-colors truncate relative group ${
-                    isActive 
-                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium" 
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  <span className={`mr-2.5 font-mono ${isActive ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"}`}>#</span>
-                  {ch.name}
-                </Link>
-              );
-            })}
+          {/* Scrollable List */}
+          <div className="flex-1 overflow-y-auto pt-2 pb-4 scroll-smooth [&::-webkit-scrollbar]:hidden">
 
-            {showChannelInput && (
-              <div className="px-3 py-1.5 animate-slide-up flex gap-2">
-                <input
-                  value={newChannelName}
-                  onChange={e => setNewChannelName(e.target.value)}
-                  placeholder="channel"
-                  autoFocus
-                  disabled={isCreatingChannel}
-                  onKeyDown={e => e.key === "Enter" && handleCreateChannel()}
-                  className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[8px] px-3 h-8 text-sm focus:border-[var(--accent)] outline-none focus:shadow-[0_0_0_3px_var(--accent-glow)] transition-all"
-                />
+            <div className="flex items-center justify-between px-5 mb-1.5">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wider">CHANNELS</span>
+              <button
+                onClick={() => setShowChannelInput(!showChannelInput)}
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors p-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+              </button>
+            </div>
+
+            <div className="px-3 space-y-0.5 relative">
+              {workspace.channels?.map((ch: any) => {
+                const isActive = ch._id === channelId;
+                return (
+                  <Link
+                    key={ch._id}
+                    href={`/workspace/${workspace._id}/channel/${ch._id}`}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center px-3 py-1.5 min-h-[48px] lg:min-h-[32px] text-[14px] rounded-lg transition-colors truncate relative group ${isActive
+                        ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                      }`}
+                  >
+                    <span className={`mr-2.5 font-mono ${isActive ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"}`}>#</span>
+                    {ch.name}
+                  </Link>
+                );
+              })}
+
+              {showChannelInput && (
+                <div className="px-3 py-1.5 animate-slide-up flex gap-2">
+                  <input
+                    value={newChannelName}
+                    onChange={e => setNewChannelName(e.target.value)}
+                    placeholder="channel"
+                    autoFocus
+                    disabled={isCreatingChannel}
+                    onKeyDown={e => e.key === "Enter" && handleCreateChannel()}
+                    className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[8px] px-3 h-8 text-sm focus:border-[var(--accent)] outline-none focus:shadow-[0_0_0_3px_var(--accent-glow)] transition-all"
+                  />
+                </div>
+              )}
+            </div>
+
+            {onlineUsers.size > 0 && (
+              <div className="pt-6">
+                <div className="px-5 mb-2 flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wider">ONLINE</span>
+                  <span className="text-[11px] font-mono text-[var(--success)]">{onlineUsers.size}</span>
+                </div>
+                <div className="px-3 space-y-0.5">
+                  {Array.from(onlineUsers).map((uname) => (
+                    <div key={uname} className="flex items-center px-3 py-1 min-h-[44px] lg:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
+                      <div className="w-2 h-2 rounded-full bg-[var(--success)] mr-3"></div>
+                      <span className="truncate">{uname}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {onlineUsers.size > 0 && (
-            <div className="pt-6">
-              <div className="px-5 mb-2 flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wider">ONLINE</span>
-                <span className="text-[11px] font-mono text-[var(--success)]">{onlineUsers.size}</span>
+          {/* Bottom User Area */}
+          <div className="p-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 truncate flex-1 min-w-0 pr-2">
+              <div className="cursor-pointer shrink-0" onClick={handleLogout}>
+                <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
               </div>
-              <div className="px-3 space-y-0.5">
-                {Array.from(onlineUsers).map((uname) => (
-                  <div key={uname} className="flex items-center px-3 py-1 min-h-[44px] lg:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
-                    <div className="w-2 h-2 rounded-full bg-[var(--success)] mr-3"></div>
-                    <span className="truncate">{uname}</span>
-                  </div>
-                ))}
-              </div>
+              <span className="text-sm font-medium text-[var(--text-primary)] truncate">{userProfile?.displayName || "Guest"}</span>
             </div>
-          )}
-        </div>
 
-        {/* Bottom User Area */}
-        <div className="p-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 truncate flex-1 min-w-0 pr-2">
-            <div className="cursor-pointer shrink-0" onClick={handleLogout}>
-              <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => console.log("settings")}
+                className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                title="Settings"
+              >
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
+                title="Toggle Theme"
+              >
+                <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'dark' ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+                  <span className="text-xl lg:text-base">☀️</span>
+                </div>
+                <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'light' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+                  <span className="text-xl lg:text-base">🌙</span>
+                </div>
+              </button>
             </div>
-            <span className="text-sm font-medium text-[var(--text-primary)] truncate">{userProfile?.displayName || "Guest"}</span>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => console.log("settings")}
-              className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              title="Settings"
-            >
-              <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
-              title="Toggle Theme"
-            >
-              <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'dark' ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-                <span className="text-xl lg:text-base">☀️</span>
-              </div>
-              <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'light' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                <span className="text-xl lg:text-base">🌙</span>
-              </div>
-            </button>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Main Area */}

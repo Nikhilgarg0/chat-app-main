@@ -24,7 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     });
-    
+
     return () => {
       clearTimeout(timeoutId);
       unsubscribe();

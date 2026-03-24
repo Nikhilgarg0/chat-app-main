@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import MessageBubble from "@/components/chat/MessageBubble";
+import Toast from "@/components/ui/Toast";
 import { auth } from "@/lib/firebase";
 import { useSidebar } from "@/components/SidebarContext";
 
@@ -17,8 +18,12 @@ export default function ChannelPage() {
   const { channelId, workspaceId } = useParams();
   const [username, setUsername] = useState("");
   const [messageInput, setMessageInput] = useState("");
+  const [activeCommand, setActiveCommand] = useState<string | null>(null);
+  const [restInput, setRestInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [channelName, setChannelName] = useState(channelId as string);
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,7 +32,7 @@ export default function ChannelPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const { messages, connected, sendMessage, sendTyping, typingUsers, refetchMessages } = useSocket(channelId as string);
+  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages } = useSocket(channelId as string);
   const { isSidebarOpen, toggleSidebar } = useSidebar();
 
   useEffect(() => {
@@ -57,7 +62,7 @@ export default function ChannelPage() {
             setChannelName(channel.name);
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchChannelName();
 
@@ -70,7 +75,7 @@ export default function ChannelPage() {
     }, 100);
   }, [messages.length]);
 
-  const filteredCommands = AI_COMMANDS.filter((c) => 
+  const filteredCommands = AI_COMMANDS.filter((c) =>
     c.command.toLowerCase().startsWith(messageInput.toLowerCase())
   );
 
@@ -82,10 +87,16 @@ export default function ChannelPage() {
     }
   }, [messageInput]);
 
+  const COMMAND_PLACEHOLDERS: Record<string, string> = {
+    "/ask": "Ask anything about this conversation...",
+    "/summarize": "Press Enter to summarize...",
+    "/todo": "Press Enter to extract action items...",
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && 
-          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)) {
         setShowMenu(false);
       }
     };
@@ -94,13 +105,21 @@ export default function ChannelPage() {
   }, [showMenu]);
 
   const handleSelectCommand = (cmd: string) => {
+    setActiveCommand(cmd);
+    setRestInput("");
     setMessageInput(cmd + " ");
     setShowMenu(false);
     inputRef.current?.focus();
   };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
+    const val = e.target.value;
+    if (activeCommand) {
+      setRestInput(val);
+      setMessageInput(activeCommand + " " + val);
+    } else {
+      setMessageInput(val);
+    }
     sendTyping(username, true);
 
     if (typingTimeoutRef.current) {
@@ -116,13 +135,15 @@ export default function ChannelPage() {
     if (!messageInput.trim() || !username) return;
     const text = messageInput.trim();
     setMessageInput("");
+    setActiveCommand(null);
+    setRestInput("");
     sendTyping(username, false);
 
     if (text.startsWith("/ask ") || text.startsWith("/summarize") || text.startsWith("/todo")) {
       const parts = text.split(" ");
       const command = parts[0].substring(1);
       const arg = parts.slice(1).join(" ");
-      
+
       setIsThinking(true);
       try {
         const res = await fetch("/api/ai", {
@@ -135,9 +156,9 @@ export default function ChannelPage() {
             workspaceId
           })
         });
-        
+
         if (res.ok) {
-          await refetchMessages();  
+          await refetchMessages();
         }
       } catch (err) {
         console.error(err);
@@ -145,7 +166,11 @@ export default function ChannelPage() {
         setIsThinking(false);
       }
     } else {
-      sendMessage(username, text);
+      const replyContext = replyTo
+        ? { author: replyTo.author, content: (replyTo.content || "").slice(0, 60), msgId: replyTo.msgId }
+        : null;
+      sendMessage(username, text, replyContext as any);
+      setReplyTo(null);
     }
   };
 
@@ -173,6 +198,15 @@ export default function ChannelPage() {
       }
     }
 
+    // Backspace on empty restInput clears the command pill
+    if (e.key === "Backspace" && activeCommand && restInput === "") {
+      e.preventDefault();
+      setActiveCommand(null);
+      setRestInput("");
+      setMessageInput("");
+      return;
+    }
+
     if (e.key === "Enter") {
       e.preventDefault();
       handleSend();
@@ -196,15 +230,37 @@ export default function ChannelPage() {
     }
   };
 
+  const onDelete = useCallback(async (messageId: string) => {
+    // Optimistic removal
+    (setMessages as any)((prev: any[]) => prev.filter((m: any) => m._id !== messageId));
+    try {
+      await fetch(`/api/messages/${messageId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorName: username }),
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }, [username, setMessages]);
+
+  // Attach showToast helper onto onReply so MessageBubble can call it
+  const showToast = useCallback((msg: string) => setToast(msg), []);
+  const onReply = useCallback((msg: any) => {
+    setReplyTo(msg);
+    inputRef.current?.focus();
+  }, []);
+  (onReply as any).__showToast = showToast;
+
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
       {/* Header - Glassmorphism */}
       <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
-        
+
         {/* Left Side: Hamburger */}
         <div className="flex items-center flex-1">
           {!isSidebarOpen && (
-            <button 
+            <button
               onClick={toggleSidebar}
               className="p-2 -ml-2 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               title="Open Sidebar"
@@ -227,11 +283,11 @@ export default function ChannelPage() {
             <span className="text-[9px] lg:text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "On" : "Sync"}</span>
           </div>
         </div>
-        
+
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col gap-[2px]" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="flex-1 overflow-y-auto px-0 py-4 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col" style={{ WebkitOverflowScrolling: "touch" }}>
         {messages.length === 0 && connected && (
           <div className="flex-1 flex flex-col items-center justify-center opacity-40 space-y-4 pt-10">
             <div className="w-16 h-16 rounded-[24px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] shadow-apple">
@@ -243,19 +299,21 @@ export default function ChannelPage() {
             </div>
           </div>
         )}
-        
+
         {messages.map((msg: any, i: number) => {
-          const prevMsg: any = i > 0 ? messages[i - 1] : null;
-          const isConsecutive = prevMsg && prevMsg.author === msg.author && prevMsg.type === msg.type;
-          
+          const isGrouped = i > 0 && (messages[i - 1] as any).author === msg.author;
+
           return (
             <MessageBubble
-              key={i}
+              key={msg._id || i}
               message={msg}
               isOwn={msg.author === username}
+              isGrouped={isGrouped}
               firebaseUid={auth.currentUser?.uid}
               onReact={onReact}
-              isConsecutive={isConsecutive}
+              onDelete={onDelete}
+              onReply={onReply}
+              username={username}
             />
           );
         })}
@@ -266,25 +324,65 @@ export default function ChannelPage() {
               <span className="text-[10px] text-[var(--ai-accent)] font-bold">AI</span>
             </div>
             <div className="flex flex-col gap-1">
-               <span className="text-[12px] font-semibold tracking-wide text-[var(--ai-accent)] flex items-center gap-2">
-                 Nexus AI 
-               </span>
-               <div className="flex gap-1 py-1.5">
-                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
-               </div>
+              <span className="text-[12px] font-semibold tracking-wide text-[var(--ai-accent)] flex items-center gap-2">
+                Nexus AI
+              </span>
+              <div className="flex gap-1 py-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
             </div>
           </div>
         )}
-        
+
         <div ref={bottomRef} className="h-4" />
       </div>
 
       {/* Input wrapper - Glassmorphism */}
       <div className="p-4 bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] border-t border-[var(--border)] z-20 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
         <div className="max-w-[1000px] mx-auto relative group">
-          
+
+          {/* Reply bar */}
+          {replyTo && (
+            <div style={{
+              position: "absolute",
+              bottom: "calc(100% + 2px)",
+              left: 0,
+              right: 0,
+              background: "var(--bg-elevated)",
+              borderTop: "2px solid var(--accent)",
+              borderRadius: "8px 8px 0 0",
+              padding: "8px 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              zIndex: 30,
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--accent)", marginBottom: 2 }}>
+                  ↩ Replying to {replyTo.author}
+                </div>
+                <div style={{
+                  fontSize: 12, color: "var(--text-secondary)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  {(replyTo.content || "").slice(0, 60)}{(replyTo.content || "").length > 60 ? "…" : ""}
+                </div>
+              </div>
+              <button
+                onClick={() => setReplyTo(null)}
+                style={{
+                  background: "transparent", border: "none",
+                  color: "var(--text-tertiary)", fontSize: 16,
+                  cursor: "pointer", flexShrink: 0, padding: 4,
+                  lineHeight: 1,
+                }}
+              >✕</button>
+            </div>
+          )}
+
           {/* Typing Indicator */}
           {typingUsers.filter((u: string) => u !== username).length > 0 && (
             <div className="absolute -top-7 left-2 flex items-center gap-1.5 animate-slide-up z-0 px-2 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm">
@@ -301,7 +399,7 @@ export default function ChannelPage() {
 
           {/* Splash Command Menu */}
           {showMenu && filteredCommands.length > 0 && (
-            <div 
+            <div
               ref={menuRef}
               className="absolute bottom-full left-0 right-0 lg:left-4 lg:right-auto mb-3 w-full lg:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
@@ -313,9 +411,8 @@ export default function ChannelPage() {
                   key={item.command}
                   onClick={() => handleSelectCommand(item.command)}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex flex-row items-center gap-3 px-[12px] py-[8px] rounded-[8px] cursor-pointer transition-colors ${
-                    idx === selectedIndex ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--bg-elevated)]"
-                  }`}
+                  className={`flex flex-row items-center gap-3 px-[12px] py-[8px] rounded-[8px] cursor-pointer transition-colors ${idx === selectedIndex ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--bg-elevated)]"
+                    }`}
                 >
                   <span className="text-[var(--accent)] font-mono font-medium text-[13px] shrink-0">{item.command}</span>
                   <span className="text-[var(--text-secondary)] text-[13px] truncate">{item.description}</span>
@@ -326,11 +423,26 @@ export default function ChannelPage() {
 
           {/* Input Bar */}
           <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px]">
-            <div className="pl-3 md:pl-4 py-1 flex-1 flex h-full">
+            <div className="pl-3 md:pl-4 py-1 flex-1 flex items-center gap-2 h-full">
+              {activeCommand && (
+                <span style={{
+                  background: 'var(--ai-bg)',
+                  color: 'var(--ai-accent)',
+                  borderRadius: '999px',
+                  padding: '2px 10px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  fontFamily: 'monospace',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}>
+                  {activeCommand}
+                </span>
+              )}
               <input
                 ref={inputRef}
-                placeholder="Message channel..."
-                value={messageInput}
+                placeholder={activeCommand ? (COMMAND_PLACEHOLDERS[activeCommand] ?? "Message channel...") : "Message channel..."}
+                value={activeCommand ? restInput : messageInput}
                 onChange={handleMessageChange}
                 onKeyDown={handleKeyDown}
                 className="w-full bg-transparent border-0 ring-0 focus:ring-0 text-[15px] font-body text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
@@ -338,7 +450,7 @@ export default function ChannelPage() {
                 disabled={!connected}
               />
             </div>
-            
+
             <button
               onClick={handleSend}
               disabled={!messageInput.trim() || !connected || !username}
@@ -347,9 +459,12 @@ export default function ChannelPage() {
               <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
             </button>
           </div>
-          
+
         </div>
       </div>
+
+      {/* Toast */}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   );
 }
