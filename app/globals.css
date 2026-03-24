@@ -75,3 +75,17 @@ code, pre, .font-mono {
 .animate-slide-up {
   animation: slideUpFade 0.2s ease forwards;
 }
+
+/* MOBILE UTILITIES */
+.mobile-only { display: none; }
+.desktop-only { display: block; }
+
+@media (max-width: 768px) {
+  .mobile-only { display: block; }
+  .desktop-only { display: none; }
+  
+  /* Prevent iOS Zoom */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}

@@ -131,13 +131,13 @@ export default function HomePage() {
   return (
     <main className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] font-body">
       {/* Top Navbar */}
-      <nav className="flex items-center justify-between px-8 py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] sticky top-0 z-50">
+      <nav className="flex items-center justify-between px-4 py-3 md:px-8 md:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-xs">N</div>
           <span className="font-display font-semibold text-lg tracking-tight">Nexus</span>
         </div>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" className="text-[var(--text-secondary)] hover:text-red-400 text-sm h-8 px-3" onClick={handleLogout}>
+        <div className="flex items-center gap-2 md:gap-4">
+          <Button variant="ghost" className="hidden sm:inline-flex text-[var(--text-secondary)] hover:text-red-400 text-sm h-8 px-3" onClick={handleLogout}>
             Logout
           </Button>
           <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
@@ -145,7 +145,7 @@ export default function HomePage() {
       </nav>
 
       {/* Main Content */}
-      <div className="flex flex-col items-center w-full max-w-4xl mx-auto px-6 py-12 animate-slide-up">
+      <div className="flex flex-col items-center w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-12 animate-slide-up">
         <div className="w-full mb-10">
           <h1 className="text-3xl font-bold font-display tracking-tight text-[var(--text-primary)]">
             Your Workspaces

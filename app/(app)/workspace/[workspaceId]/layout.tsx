@@ -153,12 +153,12 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       <div 
         className={`fixed lg:relative z-40 h-full bg-[var(--bg-surface)] border-r border-[var(--border)] shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
           ${isSidebarOpen 
-            ? "translate-x-0 w-[260px] shadow-[var(--shadow)] lg:shadow-none lg:w-[260px] lg:opacity-100" 
-            : "-translate-x-full w-[260px] lg:translate-x-0 lg:w-0 lg:opacity-0 lg:border-r-0"
+            ? "translate-x-0 w-[80vw] max-w-[300px] shadow-[var(--shadow)] lg:shadow-none lg:w-[240px] lg:opacity-100" 
+            : "-translate-x-full w-[80vw] max-w-[300px] lg:translate-x-0 lg:w-0 lg:opacity-0 lg:border-r-0"
           }
         `}
       >
-        <div className="w-[260px] h-full flex flex-col pt-4 relative">
+        <div className="w-[80vw] max-w-[300px] lg:w-[240px] h-full flex flex-col pt-4 relative">
         
         {/* Workspace Brand Header */}
         <div className="px-5 pb-4 flex items-start justify-between">
@@ -215,7 +215,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 <Link 
                   key={ch._id} 
                   href={`/workspace/${workspace._id}/channel/${ch._id}`}
-                  className={`flex items-center px-3 py-1.5 text-[14px] rounded-lg transition-colors truncate relative group ${
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`flex items-center px-3 py-1.5 min-h-[48px] lg:min-h-[32px] text-[14px] rounded-lg transition-colors truncate relative group ${
                     isActive 
                       ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium" 
                       : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
@@ -250,7 +251,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               </div>
               <div className="px-3 space-y-0.5">
                 {Array.from(onlineUsers).map((uname) => (
-                  <div key={uname} className="flex items-center px-3 py-1 text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
+                  <div key={uname} className="flex items-center px-3 py-1 min-h-[44px] lg:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
                     <div className="w-2 h-2 rounded-full bg-[var(--success)] mr-3"></div>
                     <span className="truncate">{uname}</span>
                   </div>
@@ -272,21 +273,21 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => console.log("settings")}
-              className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               title="Settings"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             </button>
             <button
               onClick={toggleTheme}
-              className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
+              className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
               title="Toggle Theme"
             >
               <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'dark' ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-                ☀️
+                <span className="text-xl lg:text-base">☀️</span>
               </div>
               <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'light' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                🌙
+                <span className="text-xl lg:text-base">🌙</span>
               </div>
             </button>
           </div>

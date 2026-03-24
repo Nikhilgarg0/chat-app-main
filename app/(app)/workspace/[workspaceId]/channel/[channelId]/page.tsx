@@ -200,29 +200,38 @@ export default function ChannelPage() {
     <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
       {/* Header - Glassmorphism */}
       <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
-        <div className="flex items-center gap-2">
+        
+        {/* Left Side: Hamburger */}
+        <div className="flex items-center flex-1">
           {!isSidebarOpen && (
             <button 
               onClick={toggleSidebar}
-              className="p-1 -ml-1 mr-1 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="p-2 -ml-2 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               title="Open Sidebar"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              <svg className="w-6 h-6 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
           )}
-          <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
-          <h2 className="text-[var(--text-primary)] font-display font-bold text-base lg:text-lg tracking-tight">{channelName}</h2>
         </div>
-        <div className="flex items-center gap-2 hidden sm:flex">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
+
+        {/* Center: Channel Name */}
+        <div className="flex items-center justify-center gap-1 flex-1 lg:flex-none">
+          <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
+          <h2 className="text-[var(--text-primary)] font-display font-bold text-base lg:text-lg tracking-tight truncate max-w-[140px] sm:max-w-none text-center">{channelName}</h2>
+        </div>
+
+        {/* Right Side: Status Pill */}
+        <div className="flex items-center justify-end flex-1">
+          <div className="flex items-center gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
             <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--success)]" : "bg-[var(--text-tertiary)] animate-pulse"}`}></div>
-            <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "Connected" : "Syncing"}</span>
+            <span className="text-[9px] lg:text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "On" : "Sync"}</span>
           </div>
         </div>
+        
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col gap-[2px]">
+      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col gap-[2px]" style={{ WebkitOverflowScrolling: "touch" }}>
         {messages.length === 0 && connected && (
           <div className="flex-1 flex flex-col items-center justify-center opacity-40 space-y-4 pt-10">
             <div className="w-16 h-16 rounded-[24px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] shadow-apple">
@@ -294,7 +303,7 @@ export default function ChannelPage() {
           {showMenu && filteredCommands.length > 0 && (
             <div 
               ref={menuRef}
-              className="absolute bottom-full left-4 mb-3 w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+              className="absolute bottom-full left-0 right-0 lg:left-4 lg:right-auto mb-3 w-full lg:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
               <div className="text-[var(--ai-accent)] text-[10px] font-bold tracking-widest uppercase mb-1 px-2 pt-1 flex items-center gap-1.5">
                 ✦ AI Command
@@ -316,8 +325,8 @@ export default function ChannelPage() {
           )}
 
           {/* Input Bar */}
-          <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] pr-[4px] lg:pr-[6px] transition-all relative z-10">
-            <div className="pl-3 md:pl-4 py-1 flex-1 flex">
+          <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px]">
+            <div className="pl-3 md:pl-4 py-1 flex-1 flex h-full">
               <input
                 ref={inputRef}
                 placeholder="Message channel..."
@@ -333,9 +342,9 @@ export default function ChannelPage() {
             <button
               onClick={handleSend}
               disabled={!messageInput.trim() || !connected || !username}
-              className="w-8 h-8 rounded-[16px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
+              className="w-[44px] h-[44px] lg:w-8 lg:h-8 rounded-[16px] lg:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
             >
-              <svg className="w-4 h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+              <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
             </button>
           </div>
           
