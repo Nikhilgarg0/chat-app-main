@@ -8,12 +8,21 @@ export async function GET(req) {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get("channelId");
+    const before = searchParams.get("before");
 
-    const messages = await Message.find({ channelId })
-      .sort({ createdAt: 1 })
-      .limit(50);
+    const query = { channelId };
+    if (before) {
+      query.createdAt = { $lt: new Date(before) };
+    }
 
-    return NextResponse.json({ success: true, messages });
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    messages.reverse(); // chronological order for the client
+
+    return NextResponse.json({ success: true, messages, hasMore: messages.length === 50 });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -26,7 +35,7 @@ export async function POST(req) {
   try {
     await connectDB();
     const body = await req.json();
-    const { channelId, author, content, time, msgId } = body;
+    const { channelId, author, content, time, msgId, replyTo } = body;
 
     if (!channelId || !author || !content || !time) {
       return NextResponse.json(
@@ -35,7 +44,10 @@ export async function POST(req) {
       );
     }
 
-    const message = await Message.create({ channelId, author, content, time, msgId });
+    const message = await Message.create({
+      channelId, author, content, time, msgId,
+      ...(replyTo ? { replyTo } : {}),
+    });
 
     try {
       await pusherServer.trigger(`chat-${channelId}`, "new-message", {
@@ -43,7 +55,8 @@ export async function POST(req) {
         author,
         content,
         time,
-        msgId
+        msgId,
+        ...(replyTo ? { replyTo } : {}),
       });
     } catch (pusherError) {
       console.error("Pusher trigger error:", pusherError);

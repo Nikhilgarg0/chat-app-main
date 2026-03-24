@@ -141,6 +141,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showUserMenu]);
 
+  // Persist last-visited channel per workspace for auto-redirect on next open
+  useEffect(() => {
+    if (channelId && workspaceId) {
+      localStorage.setItem(`lastChannel:${workspaceId}`, channelId as string);
+    }
+  }, [channelId, workspaceId]);
+
   const handleCreateChannel = async () => {
     if (!newChannelName.trim() || !workspaceId) return;
     setIsCreatingChannel(true);

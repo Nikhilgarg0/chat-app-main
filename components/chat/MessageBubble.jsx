@@ -19,6 +19,7 @@ export default function MessageBubble({
   onReply,
   username,
   onShowToast,
+  onRetry,
 }) {
   const isAI = message.type === "ai";
 
@@ -139,52 +140,7 @@ export default function MessageBubble({
   // Always work with a plain string — guards against array/object content
   const contentStr = String(message.content ?? "");
 
-  // ── Context menu ────────────────────────────────────────────────────────────
-  const ContextMenu = () => {
-    const [leftOffset, setLeftOffset] = useState(0);
 
-    useEffect(() => {
-      if (!menuRef.current) return;
-      const rect = menuRef.current.getBoundingClientRect();
-      // How many pixels does the right edge overflow the viewport?
-      const overflow = rect.right - window.innerWidth;
-      if (overflow > 0) {
-        // Shift left by the overflow amount, but never go off the left edge
-        setLeftOffset(-Math.max(0, overflow));
-      }
-    }, []);
-
-    return (
-      <div
-        ref={menuRef}
-        style={{
-          position: "absolute",
-          [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
-          left: leftOffset, zIndex: 200,
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 16,
-          boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
-          backdropFilter: "blur(20px)",
-          overflow: "hidden",
-          minWidth: 200,
-          animation: "ctxFadeIn 0.14s ease",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
-          {(showExtraEmojis ? EXTRA_EMOJIS : PRIMARY_EMOJIS).map((emoji) => (
-            <EmojiBtn key={emoji} emoji={emoji} onClick={() => handleReact(emoji)} />
-          ))}
-          <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
-        </div>
-        <div style={{ padding: "4px 0" }}>
-          <ActionItem icon="↩" label="Reply" onClick={handleReplyClick} />
-          <ActionItem icon="📋" label="Copy" onClick={handleCopy} />
-          {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={handleDelete} danger />}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -353,7 +309,19 @@ export default function MessageBubble({
               )}
 
               {/* Context menu */}
-              {menuOpen && <ContextMenu />}
+              {menuOpen && (
+                <ContextMenu
+                  menuRef={menuRef}
+                  menuAbove={menuAbove}
+                  showExtraEmojis={showExtraEmojis}
+                  setShowExtraEmojis={setShowExtraEmojis}
+                  onReact={handleReact}
+                  onReply={handleReplyClick}
+                  onCopy={handleCopy}
+                  onDelete={handleDelete}
+                  isOwn={isOwn}
+                />
+              )}
 
               {/* ── Desktop reply button (shows on row hover, right side) ── */}
               {rowHovered && !menuOpen && (
@@ -383,6 +351,25 @@ export default function MessageBubble({
                 </button>
               )}
             </div>
+
+            {/* ── Send failure indicator ── */}
+            {message.status === "failed" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 11, color: "#ff3b30" }}>⚠ Failed to send</span>
+                {onRetry && (
+                  <button
+                    onClick={() => onRetry(message)}
+                    style={{
+                      fontSize: 11, color: "var(--accent)",
+                      background: "transparent", border: "none",
+                      cursor: "pointer", padding: 0, textDecoration: "underline",
+                    }}
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* ── Reactions ── */}
             {reactionEntries.length > 0 && (
@@ -462,5 +449,51 @@ function ActionItem({ icon, label, onClick, danger = false }) {
       <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
       <span>{label}</span>
     </button>
+  );
+}
+
+// ── Context menu (stable module-level component) ──────────────────────────────
+function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, onReact, onReply, onCopy, onDelete, isOwn }) {
+  const [leftOffset, setLeftOffset] = useState(0);
+
+  useEffect(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const overflow = rect.right - window.innerWidth + 8; // +8px breathing room
+    if (overflow > 0) {
+      setLeftOffset(-Math.max(0, overflow));
+    }
+  }, []);
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: "absolute",
+        [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
+        left: leftOffset,
+        zIndex: 200,
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 16,
+        boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+        backdropFilter: "blur(20px)",
+        overflow: "hidden",
+        minWidth: 200,
+        animation: "ctxFadeIn 0.14s ease",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
+        {(showExtraEmojis ? EXTRA_EMOJIS : PRIMARY_EMOJIS).map((emoji) => (
+          <EmojiBtn key={emoji} emoji={emoji} onClick={() => onReact(emoji)} />
+        ))}
+        <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
+      </div>
+      <div style={{ padding: "4px 0" }}>
+        <ActionItem icon="↩" label="Reply" onClick={onReply} />
+        <ActionItem icon="📋" label="Copy" onClick={onCopy} />
+        {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={onDelete} danger />}
+      </div>
+    </div>
   );
 }

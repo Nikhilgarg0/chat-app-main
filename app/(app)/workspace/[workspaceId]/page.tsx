@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSidebar } from "@/components/SidebarContext";
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams();
+  const router = useRouter();
   const [workspace, setWorkspace] = useState<any>(null);
   const { isSidebarOpen, toggleSidebar } = useSidebar();
 
@@ -16,11 +17,20 @@ export default function WorkspacePage() {
         if (res.ok) {
           const data = await res.json();
           setWorkspace(data.workspace);
+
+          // Auto-redirect to last visited channel or first channel
+          const channels = data.workspace?.channels;
+          if (channels && channels.length > 0) {
+            const lastChannelId = localStorage.getItem(`lastChannel:${workspaceId}`);
+            const target = (lastChannelId && channels.find((c: any) => c._id === lastChannelId))
+              || channels[0];
+            router.replace(`/workspace/${workspaceId}/channel/${target._id}`);
+          }
         }
       } catch (err) {}
     };
     if (workspaceId) fetchWS();
-  }, [workspaceId]);
+  }, [workspaceId, router]);
 
   return (
     <div className="flex flex-1 flex-col relative h-full bg-[var(--bg-base)] w-full">

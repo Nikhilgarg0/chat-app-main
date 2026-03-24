@@ -21,10 +21,12 @@ export default function ChannelPage() {
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const [restInput, setRestInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [channelName, setChannelName] = useState(channelId as string);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [toast, setToast] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,7 @@ export default function ChannelPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages } = useSocket(channelId as string);
+  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore } = useSocket(channelId as string);
   const { isSidebarOpen, toggleSidebar } = useSidebar();
 
   useEffect(() => {
@@ -136,45 +138,50 @@ export default function ChannelPage() {
   };
 
   const handleSend = async () => {
-    if (!messageInput.trim() || !username) return;
+    if (!messageInput.trim() || !username || isSending) return;
+    setIsSending(true);
     const text = messageInput.trim();
     setMessageInput("");
     setActiveCommand(null);
     setRestInput("");
     sendTyping(username, false);
 
-    if (text.startsWith("/ask ") || text.startsWith("/summarize") || text.startsWith("/todo")) {
-      const parts = text.split(" ");
-      const command = parts[0].substring(1);
-      const arg = parts.slice(1).join(" ");
+    try {
+      if (text.startsWith("/ask ") || text.startsWith("/summarize") || text.startsWith("/todo")) {
+        const parts = text.split(" ");
+        const command = parts[0].substring(1);
+        const arg = parts.slice(1).join(" ");
 
-      setIsThinking(true);
-      try {
-        const res = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            command,
-            messages: arg,
-            channelId,
-            workspaceId
-          })
-        });
+        setIsThinking(true);
+        try {
+          const res = await fetch("/api/ai", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              command,
+              messages: arg,
+              channelId,
+              workspaceId
+            })
+          });
 
-        if (res.ok) {
-          await refetchMessages();
+          if (res.ok) {
+            await refetchMessages();
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setIsThinking(false);
         }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsThinking(false);
+      } else {
+        const replyContext = replyTo
+          ? { author: replyTo.author, content: (replyTo.content || "").slice(0, 60), msgId: replyTo.msgId }
+          : null;
+        sendMessage(username, text, replyContext as any);
+        setReplyTo(null);
       }
-    } else {
-      const replyContext = replyTo
-        ? { author: replyTo.author, content: (replyTo.content || "").slice(0, 60), msgId: replyTo.msgId }
-        : null;
-      sendMessage(username, text, replyContext as any);
-      setReplyTo(null);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -265,6 +272,22 @@ export default function ChannelPage() {
     }
   }, [username, setMessages]);
 
+  const handleRetry = useCallback((failedMsg: any) => {
+    (setMessages as any)((prev: any[]) => prev.filter((m: any) => m.msgId !== failedMsg.msgId));
+    sendMessage(username, failedMsg.content, failedMsg.replyTo || null);
+  }, [username, sendMessage, setMessages]);
+
+  const handleLoadMore = async () => {
+    const container = scrollContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    await loadMoreMessages();
+    requestAnimationFrame(() => {
+      if (container) {
+        container.scrollTop = container.scrollHeight - prevScrollHeight;
+      }
+    });
+  };
+
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const onReply = useCallback((msg: any) => {
     setReplyTo(msg);
@@ -306,7 +329,18 @@ export default function ChannelPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-0 py-4 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-0 py-4 scroll-smooth [&::-webkit-scrollbar]:hidden z-10 overscroll-contain flex flex-col" style={{ WebkitOverflowScrolling: "touch" }}>
+
+        {hasMore && (
+          <div className="flex justify-center py-3">
+            <button
+              onClick={handleLoadMore}
+              className="text-[13px] text-[var(--accent)] font-medium px-4 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors"
+            >
+              Load earlier messages
+            </button>
+          </div>
+        )}
         {messages.length === 0 && connected && (
           <div className="flex-1 flex flex-col items-center justify-center opacity-40 space-y-4 pt-10">
             <div className="w-16 h-16 rounded-[24px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] shadow-apple">
@@ -334,6 +368,7 @@ export default function ChannelPage() {
               onReply={onReply}
               username={username}
               onShowToast={showToast}
+              onRetry={handleRetry}
             />
           );
         })}
@@ -368,6 +403,7 @@ export default function ChannelPage() {
             <div style={{
               background: "var(--bg-elevated)",
               borderTop: "2px solid var(--accent)",
+              borderBottom: "none",
               borderRadius: "8px 8px 0 0",
               padding: "8px 16px",
               display: "flex",
@@ -453,7 +489,7 @@ export default function ChannelPage() {
             )}
 
             {/* Input Bar */}
-            <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px]">
+            <div className={`w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px] ${replyTo ? "rounded-b-[20px] rounded-t-none" : "rounded-[20px]"}`}>
               <div className="pl-3 md:pl-4 py-1 flex-1 flex items-center gap-2 h-full">
                 {activeCommand && (
                   <span style={{
@@ -484,10 +520,17 @@ export default function ChannelPage() {
 
               <button
                 onClick={handleSend}
-                disabled={!messageInput.trim() || !connected || !username}
+                disabled={!messageInput.trim() || !connected || !username || isThinking || isSending}
                 className="w-[44px] h-[44px] lg:w-8 lg:h-8 rounded-[16px] lg:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
               >
-                <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                {(isThinking || isSending) ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                )}
               </button>
             </div>
 

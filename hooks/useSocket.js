@@ -7,6 +7,7 @@ export function useSocket(channelId) {
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [connected, setConnected] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const channelRef = useRef(null);
 
   const refetchMessages = async () => {
@@ -15,9 +16,27 @@ export function useSocket(channelId) {
       const data = await res.json();
       if (data.success) {
         setMessages(data.messages);
+        setHasMore(data.hasMore ?? false);
       }
     } catch (err) {
       console.error("Failed to fetch message history:", err);
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (!messages.length) return;
+    const oldest = messages[0];
+    const cursor = oldest.createdAt;
+    if (!cursor) return;
+    try {
+      const res = await fetch(`/api/messages?channelId=${channelId}&before=${encodeURIComponent(cursor)}`);
+      const data = await res.json();
+      if (data.success) {
+        setMessages((prev) => [...data.messages, ...prev]);
+        setHasMore(data.hasMore ?? false);
+      }
+    } catch (err) {
+      console.error("Failed to load more messages:", err);
     }
   };
 
@@ -95,19 +114,28 @@ export function useSocket(channelId) {
     });
 
     const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    const messageData = { channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}) };
+    const messageData = { channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}), status: "sending" };
 
     // Optimistic UI update
     setMessages((prev) => [...prev, messageData]);
 
-    // Save to DB and trigger Pusher broadcast
-    fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(messageData),
-    }).catch((err) => {
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Strip the UI-only status field before sending to the API
+        body: JSON.stringify({ channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}) }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setMessages((prev) =>
+        prev.map((m) => m.msgId === msgId ? { ...m, status: "sent" } : m)
+      );
+    } catch (err) {
       console.error("Failed to save message:", err);
-    });
+      setMessages((prev) =>
+        prev.map((m) => m.msgId === msgId ? { ...m, status: "failed" } : m)
+      );
+    }
   };
 
   const sendTyping = (username, isTyping) => {
@@ -118,5 +146,5 @@ export function useSocket(channelId) {
     }).catch(() => {});
   };
 
-  return { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages };
+  return { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore };
 }
