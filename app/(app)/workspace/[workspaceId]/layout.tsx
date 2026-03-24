@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
@@ -10,6 +10,7 @@ import { pusherClient } from "@/lib/pusher";
 import { useTheme } from "@/components/ThemeProvider";
 import { useSidebar } from "@/components/SidebarContext";
 import UserAvatar from "@/components/ui/UserAvatar";
+import Toast from "@/components/ui/Toast";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { workspaceId, channelId } = useParams();
@@ -24,6 +25,9 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [showChannelInput, setShowChannelInput] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const [touchStartX, setTouchStartX] = useState(0);
   const [touchEndX, setTouchEndX] = useState(0);
@@ -119,11 +123,23 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   }, [userProfile?.displayName, workspaceId]);
 
   const handleLogout = async () => {
+    setShowUserMenu(false);
     try {
       await signOut(auth);
       router.push("/login");
     } catch (err) { }
   };
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserMenu]);
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim() || !workspaceId) return;
@@ -258,16 +274,41 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               })}
 
               {showChannelInput && (
-                <div className="px-3 py-1.5 animate-slide-up flex gap-2">
+                <div className="px-3 py-1.5 animate-slide-up flex gap-2 items-center">
                   <input
                     value={newChannelName}
                     onChange={e => setNewChannelName(e.target.value)}
                     placeholder="channel"
                     autoFocus
                     disabled={isCreatingChannel}
-                    onKeyDown={e => e.key === "Enter" && handleCreateChannel()}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleCreateChannel();
+                      if (e.key === "Escape") { setShowChannelInput(false); setNewChannelName(""); }
+                    }}
                     className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[8px] px-3 h-8 text-sm focus:border-[var(--accent)] outline-none focus:shadow-[0_0_0_3px_var(--accent-glow)] transition-all"
                   />
+                  <button
+                    onClick={handleCreateChannel}
+                    disabled={!newChannelName.trim() || isCreatingChannel}
+                    title="Create channel"
+                    style={{
+                      background: "var(--accent)",
+                      border: "none", borderRadius: 6,
+                      color: "#fff", width: 28, height: 28,
+                      fontSize: 14, cursor: "pointer", flexShrink: 0,
+                      opacity: !newChannelName.trim() || isCreatingChannel ? 0.4 : 1,
+                      transition: "opacity 0.15s",
+                    }}
+                  >✓</button>
+                  <button
+                    onClick={() => { setShowChannelInput(false); setNewChannelName(""); }}
+                    title="Cancel"
+                    style={{
+                      background: "transparent", border: "none", borderRadius: 6,
+                      color: "var(--text-tertiary)", width: 28, height: 28,
+                      fontSize: 14, cursor: "pointer", flexShrink: 0,
+                    }}
+                  >✕</button>
                 </div>
               )}
             </div>
@@ -291,9 +332,53 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Bottom User Area */}
-          <div className="p-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
+          <div className="p-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2" style={{ position: "relative" }}>
+
+            {/* User dropdown menu */}
+            {showUserMenu && (
+              <div
+                ref={userMenuRef}
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 6px)",
+                  left: 12,
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                  overflow: "hidden",
+                  minWidth: 160,
+                  zIndex: 50,
+                  animation: "ctxFadeIn 0.14s ease",
+                }}
+              >
+                <div style={{ padding: "6px 0" }}>
+                  <div style={{ padding: "8px 16px 6px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    {userProfile?.displayName || "Guest"}
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: "100%", padding: "10px 16px",
+                      textAlign: "left", background: "transparent",
+                      border: "none", color: "#ff3b30",
+                      fontSize: 14, cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 8,
+                    }}
+                  >
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-2.5 truncate flex-1 min-w-0 pr-2">
-              <div className="cursor-pointer shrink-0" onClick={handleLogout}>
+              <div
+                className="cursor-pointer shrink-0 rounded-full ring-2 ring-transparent hover:ring-[var(--accent)] transition-all"
+                onClick={() => setShowUserMenu(v => !v)}
+                title="Account menu"
+              >
                 <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
               </div>
               <span className="text-sm font-medium text-[var(--text-primary)] truncate">{userProfile?.displayName || "Guest"}</span>
@@ -301,7 +386,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => console.log("settings")}
+                onClick={() => setToast("Settings coming soon")}
                 className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 title="Settings"
               >
@@ -328,6 +413,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] transition-all duration-300 min-w-0">
         {children}
       </div>
+
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   );
 }

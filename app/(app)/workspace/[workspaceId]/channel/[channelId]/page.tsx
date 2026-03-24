@@ -69,11 +69,15 @@ export default function ChannelPage() {
     return () => unsub();
   }, [workspaceId, channelId]);
 
+  const lastMessageId = (messages[messages.length - 1] as any)?._id
+    ?? (messages[messages.length - 1] as any)?.msgId
+    ?? null;
+
   useEffect(() => {
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
-  }, [messages.length]);
+  }, [lastMessageId]);
 
   const filteredCommands = AI_COMMANDS.filter((c) =>
     c.command.toLowerCase().startsWith(messageInput.toLowerCase())
@@ -215,18 +219,35 @@ export default function ChannelPage() {
 
   const onReact = async (messageId: string, emoji: string) => {
     if (!auth.currentUser) return;
+    const firebaseUid = auth.currentUser.uid;
+
+    // Snapshot current state for rollback
+    let prevMessages: any[];
+    (setMessages as any)((prev: any[]) => {
+      prevMessages = prev;
+      return prev.map((msg: any) => {
+        if (msg._id !== messageId) return msg;
+        const reactions = { ...(msg.reactions || {}) };
+        const users: string[] = reactions[emoji] ? [...reactions[emoji]] : [];
+        const idx = users.indexOf(firebaseUid);
+        if (idx === -1) users.push(firebaseUid);
+        else users.splice(idx, 1);
+        reactions[emoji] = users;
+        if (reactions[emoji].length === 0) delete reactions[emoji];
+        return { ...msg, reactions };
+      });
+    });
+
     try {
       await fetch(`/api/messages/${messageId}/reactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          emoji,
-          firebaseUid: auth.currentUser.uid,
-          username
-        })
+        body: JSON.stringify({ emoji, firebaseUid, username })
       });
     } catch (e) {
       console.error(e);
+      // Roll back to the state before the optimistic update
+      (setMessages as any)(() => prevMessages);
     }
   };
 
@@ -244,13 +265,11 @@ export default function ChannelPage() {
     }
   }, [username, setMessages]);
 
-  // Attach showToast helper onto onReply so MessageBubble can call it
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const onReply = useCallback((msg: any) => {
     setReplyTo(msg);
     inputRef.current?.focus();
   }, []);
-  (onReply as any).__showToast = showToast;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
@@ -279,8 +298,8 @@ export default function ChannelPage() {
         {/* Right Side: Status Pill */}
         <div className="flex items-center justify-end flex-1">
           <div className="flex items-center gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
-            <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--success)]" : "bg-[var(--text-tertiary)] animate-pulse"}`}></div>
-            <span className="text-[9px] lg:text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "On" : "Sync"}</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--success)]" : "bg-red-400 animate-pulse"}`}></div>
+            <span className="text-[9px] lg:text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "Live" : "Offline"}</span>
           </div>
         </div>
 
@@ -314,6 +333,7 @@ export default function ChannelPage() {
               onDelete={onDelete}
               onReply={onReply}
               username={username}
+              onShowToast={showToast}
             />
           );
         })}
@@ -341,15 +361,11 @@ export default function ChannelPage() {
 
       {/* Input wrapper - Glassmorphism */}
       <div className="p-4 bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] border-t border-[var(--border)] z-20 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
-        <div className="max-w-[1000px] mx-auto relative group">
+        <div className="max-w-[1000px] mx-auto flex flex-col gap-0">
 
-          {/* Reply bar */}
+          {/* Reply bar — normal flow, sits above the input bar */}
           {replyTo && (
             <div style={{
-              position: "absolute",
-              bottom: "calc(100% + 2px)",
-              left: 0,
-              right: 0,
               background: "var(--bg-elevated)",
               borderTop: "2px solid var(--accent)",
               borderRadius: "8px 8px 0 0",
@@ -358,7 +374,6 @@ export default function ChannelPage() {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 12,
-              zIndex: 30,
             }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: "var(--accent)", marginBottom: 2 }}>
@@ -383,83 +398,100 @@ export default function ChannelPage() {
             </div>
           )}
 
-          {/* Typing Indicator */}
-          {typingUsers.filter((u: string) => u !== username).length > 0 && (
-            <div className="absolute -top-7 left-2 flex items-center gap-1.5 animate-slide-up z-0 px-2 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm">
-              <span className="text-[11px] text-[var(--text-tertiary)] font-medium italic">
-                {typingUsers.filter((u: string) => u !== username).join(', ')} is typing
-              </span>
-              <div className="flex gap-0.5 ml-1">
-                <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          )}
-
-          {/* Splash Command Menu */}
-          {showMenu && filteredCommands.length > 0 && (
-            <div
-              ref={menuRef}
-              className="absolute bottom-full left-0 right-0 lg:left-4 lg:right-auto mb-3 w-full lg:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
-            >
-              <div className="text-[var(--ai-accent)] text-[10px] font-bold tracking-widest uppercase mb-1 px-2 pt-1 flex items-center gap-1.5">
-                ✦ AI Command
-              </div>
-              {filteredCommands.map((item, idx) => (
-                <div
-                  key={item.command}
-                  onClick={() => handleSelectCommand(item.command)}
-                  onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex flex-row items-center gap-3 px-[12px] py-[8px] rounded-[8px] cursor-pointer transition-colors ${idx === selectedIndex ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--bg-elevated)]"
-                    }`}
-                >
-                  <span className="text-[var(--accent)] font-mono font-medium text-[13px] shrink-0">{item.command}</span>
-                  <span className="text-[var(--text-secondary)] text-[13px] truncate">{item.description}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Input Bar */}
-          <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px]">
-            <div className="pl-3 md:pl-4 py-1 flex-1 flex items-center gap-2 h-full">
-              {activeCommand && (
-                <span style={{
-                  background: 'var(--ai-bg)',
-                  color: 'var(--ai-accent)',
-                  borderRadius: '999px',
-                  padding: '2px 10px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  fontFamily: 'monospace',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}>
-                  {activeCommand}
+          {/* Typing Indicator — normal flow, sits above the input bar */}
+          {(() => {
+            const activeTypers = typingUsers.filter((u: string) => u !== username);
+            if (activeTypers.length === 0) return null;
+            const verb = activeTypers.length === 1 ? 'is' : 'are';
+            let names: string;
+            if (activeTypers.length === 1) {
+              names = activeTypers[0];
+            } else if (activeTypers.length === 2) {
+              names = `${activeTypers[0]} and ${activeTypers[1]}`;
+            } else {
+              names = `${activeTypers[0]}, ${activeTypers[1]} and ${activeTypers.length - 2} other${activeTypers.length - 2 > 1 ? 's' : ''}`;
+            }
+            return (
+              <div className="flex items-center gap-1.5 animate-slide-up px-2 py-1 mb-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm self-start">
+                <span className="text-[11px] text-[var(--text-tertiary)] font-medium italic">
+                  {names} {verb} typing
                 </span>
-              )}
-              <input
-                ref={inputRef}
-                placeholder={activeCommand ? (COMMAND_PLACEHOLDERS[activeCommand] ?? "Message channel...") : "Message channel..."}
-                value={activeCommand ? restInput : messageInput}
-                onChange={handleMessageChange}
-                onKeyDown={handleKeyDown}
-                className="w-full bg-transparent border-0 ring-0 focus:ring-0 text-[15px] font-body text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
-                autoFocus
-                disabled={!connected}
-              />
+                <div className="flex gap-0.5 ml-1">
+                  <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Input bar row — relative so the command menu can anchor to it */}
+          <div className="relative group">
+
+            {/* Splash Command Menu */}
+            {showMenu && filteredCommands.length > 0 && (
+              <div
+                ref={menuRef}
+                className="absolute bottom-full left-0 right-0 lg:left-4 lg:right-auto mb-3 w-full lg:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                <div className="text-[var(--ai-accent)] text-[10px] font-bold tracking-widest uppercase mb-1 px-2 pt-1 flex items-center gap-1.5">
+                  ✦ AI Command
+                </div>
+                {filteredCommands.map((item, idx) => (
+                  <div
+                    key={item.command}
+                    onClick={() => handleSelectCommand(item.command)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`flex flex-row items-center gap-3 px-[12px] py-[8px] rounded-[8px] cursor-pointer transition-colors ${idx === selectedIndex ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--bg-elevated)]"
+                      }`}
+                  >
+                    <span className="text-[var(--accent)] font-mono font-medium text-[13px] shrink-0">{item.command}</span>
+                    <span className="text-[var(--text-secondary)] text-[13px] truncate">{item.description}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input Bar */}
+            <div className="w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] rounded-[20px] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px]">
+              <div className="pl-3 md:pl-4 py-1 flex-1 flex items-center gap-2 h-full">
+                {activeCommand && (
+                  <span style={{
+                    background: 'var(--ai-bg)',
+                    color: 'var(--ai-accent)',
+                    borderRadius: '999px',
+                    padding: '2px 10px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    fontFamily: 'monospace',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}>
+                    {activeCommand}
+                  </span>
+                )}
+                <input
+                  ref={inputRef}
+                  placeholder={activeCommand ? (COMMAND_PLACEHOLDERS[activeCommand] ?? "Message channel...") : "Message channel..."}
+                  value={activeCommand ? restInput : messageInput}
+                  onChange={handleMessageChange}
+                  onKeyDown={handleKeyDown}
+                  className="w-full bg-transparent border-0 ring-0 focus:ring-0 text-[15px] font-body text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
+                  autoFocus
+                  disabled={!connected}
+                />
+              </div>
+
+              <button
+                onClick={handleSend}
+                disabled={!messageInput.trim() || !connected || !username}
+                className="w-[44px] h-[44px] lg:w-8 lg:h-8 rounded-[16px] lg:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
+              >
+                <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+              </button>
             </div>
 
-            <button
-              onClick={handleSend}
-              disabled={!messageInput.trim() || !connected || !username}
-              className="w-[44px] h-[44px] lg:w-8 lg:h-8 rounded-[16px] lg:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
-            >
-              <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-            </button>
           </div>
-
         </div>
       </div>
 

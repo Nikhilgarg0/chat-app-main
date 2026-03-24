@@ -18,6 +18,7 @@ export default function MessageBubble({
   onDelete,
   onReply,
   username,
+  onShowToast,
 }) {
   const isAI = message.type === "ai";
 
@@ -125,7 +126,7 @@ export default function MessageBubble({
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content || "");
     setMenuOpen(false);
-    if (onReply?.__showToast) onReply.__showToast("Copied!");
+    onShowToast?.("Copied!");
   };
 
   const handleDelete = () => { setMenuOpen(false); onDelete?.(message._id); };
@@ -139,36 +140,51 @@ export default function MessageBubble({
   const contentStr = String(message.content ?? "");
 
   // ── Context menu ────────────────────────────────────────────────────────────
-  const ContextMenu = () => (
-    <div
-      ref={menuRef}
-      style={{
-        position: "absolute",
-        [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
-        left: 0, zIndex: 200,
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 16,
-        boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
-        backdropFilter: "blur(20px)",
-        overflow: "hidden",
-        minWidth: 200,
-        animation: "ctxFadeIn 0.14s ease",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
-        {(showExtraEmojis ? EXTRA_EMOJIS : PRIMARY_EMOJIS).map((emoji) => (
-          <EmojiBtn key={emoji} emoji={emoji} onClick={() => handleReact(emoji)} />
-        ))}
-        <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
+  const ContextMenu = () => {
+    const [leftOffset, setLeftOffset] = useState(0);
+
+    useEffect(() => {
+      if (!menuRef.current) return;
+      const rect = menuRef.current.getBoundingClientRect();
+      // How many pixels does the right edge overflow the viewport?
+      const overflow = rect.right - window.innerWidth;
+      if (overflow > 0) {
+        // Shift left by the overflow amount, but never go off the left edge
+        setLeftOffset(-Math.max(0, overflow));
+      }
+    }, []);
+
+    return (
+      <div
+        ref={menuRef}
+        style={{
+          position: "absolute",
+          [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
+          left: leftOffset, zIndex: 200,
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+          backdropFilter: "blur(20px)",
+          overflow: "hidden",
+          minWidth: 200,
+          animation: "ctxFadeIn 0.14s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
+          {(showExtraEmojis ? EXTRA_EMOJIS : PRIMARY_EMOJIS).map((emoji) => (
+            <EmojiBtn key={emoji} emoji={emoji} onClick={() => handleReact(emoji)} />
+          ))}
+          <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
+        </div>
+        <div style={{ padding: "4px 0" }}>
+          <ActionItem icon="↩" label="Reply" onClick={handleReplyClick} />
+          <ActionItem icon="📋" label="Copy" onClick={handleCopy} />
+          {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={handleDelete} danger />}
+        </div>
       </div>
-      <div style={{ padding: "4px 0" }}>
-        <ActionItem icon="↩" label="Reply" onClick={handleReplyClick} />
-        <ActionItem icon="📋" label="Copy" onClick={handleCopy} />
-        {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={handleDelete} danger />}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -183,7 +199,6 @@ export default function MessageBubble({
       <div
         style={{
           position: "relative",
-          overflow: "hidden",
           marginTop: isGrouped ? 2 : 16,
         }}
       >
@@ -228,6 +243,7 @@ export default function MessageBubble({
             gap: 12,
             padding: "2px 16px",
             borderRadius: 4,
+            overflow: "hidden",
             background: rowHovered ? "var(--bg-elevated)" : "transparent",
             transition: swipeSpring
               ? "transform 0.2s ease, background 0.1s"
@@ -255,21 +271,22 @@ export default function MessageBubble({
               }
             </div>
           ) : (
-            /* Grouped: no avatar, just the hover-timestamp in a fixed-width phantom */
-            <div style={{ width: 36, flexShrink: 0 }}>
-              {rowHovered && (
-                <span style={{
-                  fontSize: 10, color: "var(--text-tertiary)", fontFamily: "monospace",
-                  display: "block", textAlign: "right", marginTop: 4, lineHeight: 1,
-                }}>
-                  {message.time}
-                </span>
-              )}
-            </div>
+            /* Grouped: phantom div keeps the left-indent — timestamp moves to content column */
+            <div style={{ width: 36, flexShrink: 0 }} />
           )}
 
           {/* ── Content column ── */}
           <div style={{ flex: 1, minWidth: 0 }}>
+
+            {/* Grouped hover timestamp — mirrors non-grouped header position */}
+            {isGrouped && rowHovered && (
+              <span style={{
+                fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace",
+                display: "block", marginBottom: 2, lineHeight: 1,
+              }}>
+                {message.time}
+              </span>
+            )}
 
             {/* Header (name + time) — first message in group only */}
             {!isGrouped && (
@@ -358,10 +375,8 @@ export default function MessageBubble({
                     color: "var(--text-secondary)",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
-                    // Hide on touch devices
-                    "@media (hover: none)": { display: "none" },
                   }}
-                  className="hidden sm:flex"     // Tailwind: hide on tiny screens
+                  className="desktop-reply-btn hidden sm:flex"
                 >
                   <span>↩</span>
                   <span>Reply</span>
