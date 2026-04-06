@@ -1,31 +1,35 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Message from "@/models/Message";
-import { pusherServer } from "@/lib/pusher";
+import { pusherServer } from "@/lib/pusher-server";
+import { verifyToken } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request, context: { params: Promise<{ messageId: string }> }) {
   try {
-    const { messageId } = await context.params;
-    const { emoji, firebaseUid, username } = await req.json();
+    const uid = await verifyToken(req);
+    if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    if (!messageId || !emoji || !firebaseUid) {
+    const { messageId } = await context.params;
+    const { emoji, username } = await req.json();
+
+    if (!messageId || !emoji) {
       return NextResponse.json({ success: false, error: "Missing fields" }, { status: 400 });
     }
 
     await connectDB();
-    
+
     const message = await Message.findById(messageId);
     if (!message) {
-       return NextResponse.json({ success: false, error: "Message not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Message not found" }, { status: 404 });
     }
 
     const currentReactions = message.reactions || new Map();
     let userArray = currentReactions.get(emoji) || [];
 
-    if (userArray.includes(firebaseUid)) {
-      userArray = userArray.filter((id: string) => id !== firebaseUid);
+    if (userArray.includes(uid)) {
+      userArray = userArray.filter((id: string) => id !== uid);
     } else {
-      userArray.push(firebaseUid);
+      userArray.push(uid);
     }
 
     if (userArray.length === 0) {
@@ -41,7 +45,7 @@ export async function POST(req: Request, context: { params: Promise<{ messageId:
 
     await pusherServer.trigger(`chat-${message.channelId}`, "reaction-update", {
       messageId: message._id,
-      reactions: reactionsObj
+      reactions: reactionsObj,
     });
 
     return NextResponse.json({ success: true, message });

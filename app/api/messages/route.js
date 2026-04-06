@@ -2,6 +2,9 @@ import connectDB from "@/lib/mongodb";
 import Message from "@/models/Message";
 import { NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
+import { verifyToken } from "@/lib/firebaseAdmin";
+
+
 
 export async function GET(req) {
   try {

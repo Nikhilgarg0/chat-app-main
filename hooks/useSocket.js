@@ -1,7 +1,7 @@
 "use client";
-
+import { authFetch } from "@/lib/authFetch";
 import { useEffect, useRef, useState } from "react";
-import { pusherClient } from "@/lib/pusher";
+import { pusherClient } from "@/lib/pusher-client";
 
 export function useSocket(channelId) {
   const [messages, setMessages] = useState([]);
@@ -12,7 +12,7 @@ export function useSocket(channelId) {
 
   const refetchMessages = async () => {
     try {
-      const res = await fetch(`/api/messages?channelId=${channelId}`);
+      const res = await authFetch(`/api/messages?channelId=${channelId}`);
       const data = await res.json();
       if (data.success) {
         setMessages(data.messages);
@@ -29,7 +29,7 @@ export function useSocket(channelId) {
     const cursor = oldest.createdAt;
     if (!cursor) return;
     try {
-      const res = await fetch(`/api/messages?channelId=${channelId}&before=${encodeURIComponent(cursor)}`);
+      const res = await authFetch(`/api/messages?channelId=${channelId}&before=${encodeURIComponent(cursor)}`);
       const data = await res.json();
       if (data.success) {
         setMessages((prev) => [...data.messages, ...prev]);
@@ -55,11 +55,14 @@ export function useSocket(channelId) {
 
     channel.bind("new-message", (data) => {
       setMessages((prev) => {
-        // Robust dedup based on a unique client-generated ID
         if (data.msgId && prev.some((m) => m.msgId === data.msgId)) {
-          return prev;
+          // B3 — optimistic message exists, patch it with the real _id from server
+          return prev.map((m) =>
+            m.msgId === data.msgId
+              ? { ...m, _id: data._id, status: "sent" }
+              : m
+          );
         }
-        // Fallback dedup for old messages without msgId
         if (prev.some((m) => m.content === data.content && m.time === data.time && m.author === data.author)) {
           return prev;
         }
@@ -79,7 +82,7 @@ export function useSocket(channelId) {
     });
 
     channel.bind("reaction-update", (data) => {
-      setMessages((prev) => 
+      setMessages((prev) =>
         prev.map((msg) =>
           msg._id === data.messageId
             ? { ...msg, reactions: data.reactions }
@@ -92,7 +95,6 @@ export function useSocket(channelId) {
       setMessages((prev) => prev.filter((msg) => msg._id !== data.messageId));
     });
 
-    // Also monitor global connection state
     const handleStateChange = (states) => {
       setConnected(states.current === "connected");
     };
@@ -113,37 +115,33 @@ export function useSocket(channelId) {
       minute: "2-digit",
     });
 
-    const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    const messageData = { channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}), status: "sending" };
+    const msgId = crypto.randomUUID();
+    const messageData = {
+      channelId, author, content, time, msgId,
+      ...(replyTo ? { replyTo } : {}),
+      status: "sending",
+    };
 
-    // Optimistic UI update
     setMessages((prev) => [...prev, messageData]);
 
     try {
-      const res = await fetch("/api/messages", {
+      const res = await authFetch("/api/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Strip the UI-only status field before sending to the API
         body: JSON.stringify({ channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}) }),
       });
       if (!res.ok) throw new Error("Failed");
-      setMessages((prev) =>
-        prev.map((m) => m.msgId === msgId ? { ...m, status: "sent" } : m)
-      );
     } catch (err) {
       console.error("Failed to save message:", err);
-      setMessages((prev) =>
-        prev.map((m) => m.msgId === msgId ? { ...m, status: "failed" } : m)
-      );
+      // B5 — mark as failed so the UI can show a retry option, remove the ghost
+      setMessages((prev) => prev.filter((m) => m.msgId !== msgId));
     }
   };
 
   const sendTyping = (username, isTyping) => {
-    fetch("/api/pusher/typing", {
+    authFetch("/api/pusher/typing", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ channelId, username, isTyping }),
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   return { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore };

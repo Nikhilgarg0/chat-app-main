@@ -91,7 +91,7 @@ export default function ChannelPage() {
     } else {
       setShowMenu(false);
     }
-  }, [messageInput]);
+  }, [messageInput, filteredCommands]);
 
   const COMMAND_PLACEHOLDERS: Record<string, string> = {
     "/ask": "Ask anything about this conversation...",
