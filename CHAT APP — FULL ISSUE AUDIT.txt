@@ -1,0 +1,133 @@
+============================================================
+  CHAT APP — FULL ISSUE AUDIT
+============================================================
+
+
+------------------------------------------------------------
+  SECTION 1: CRITICAL (Security)
+------------------------------------------------------------
+
+1. No authentication on any API route
+   Every endpoint — messages, workspaces, channels, reactions,
+   AI — accepts requests with just a firebaseUid in the body.
+   Anyone can forge a UID and post, delete, or fetch messages
+   as any user. No server-side token verification exists
+   (e.g. Firebase Admin SDK).
+
+2. No rate limiting on the AI endpoint
+   POST /api/ai calls Gemini with no rate limiting, no auth,
+   and no cost guard. Any unauthenticated caller can hammer it
+   and run up the Gemini API bill freely.
+
+3. Workspace membership not verified before reading messages
+   GET /api/messages?channelId=X returns all messages from any
+   channel with no check that the requester is a member of the
+   parent workspace.
+
+
+------------------------------------------------------------
+  SECTION 2: BUGS
+------------------------------------------------------------
+
+1. Mobile keyboard breaks the entire layout
+   The app uses h-screen / min-h-screen (100vh). On mobile,
+   when the software keyboard appears, the browser shrinks the
+   visual viewport but 100vh stays fixed — so the top of the
+   app scrolls off-screen. The fix is to use 100dvh or the
+   visualViewport API. Neither is present. The maximum-scale=1
+   viewport meta makes this worse by preventing browser-level
+   adjustments.
+
+
+------------------------------------------------------------
+  SECTION 3: QUALITY / CODE SMELL
+------------------------------------------------------------
+
+1. Inconsistent JS/TS across the project
+   app/api/messages/route.js, models/Message.js,
+   hooks/useSocket.js, lib/mongodb.js, and app/layout.js are
+   plain JavaScript while the rest of the project is
+   TypeScript. This breaks type safety across the most
+   critical paths — messages, DB connection, real-time hook.
+
+2. time stored as a locale string
+   Messages persist time as new Date().toLocaleTimeString() —
+   a string like "02:45 PM" that varies by the server's
+   locale/timezone. Cannot be reliably sorted, compared, or
+   displayed correctly for users in different timezones. Store
+   an ISO timestamp and format client-side.
+
+3. No pagination on messages
+   Both GET /api/messages and the AI context fetch hardcode
+   .limit(50). There is no cursor/offset pagination — channels
+   with more than 50 messages silently drop older history.
+
+
+------------------------------------------------------------
+  SECTION 4: MISSING FEATURES / UX
+------------------------------------------------------------
+
+1. Mobile responsiveness / logout usability
+   Logout exists but is buried (avatar → Sign out in sidebar)
+   and non-obvious on mobile. h-screen is used everywhere,
+   which breaks on iOS Safari where browser chrome eats into
+   the viewport. No safe-area-inset-bottom for iPhone
+   notch/home bar. Several layout features are only shown at
+   lg: breakpoints with no mobile fallback.
+
+2. No profile edit feature
+   GET /api/users/profile exists and data is displayed (avatar
+   + name in sidebar), but there is no profile page, no edit
+   form, and no way to change display name, avatar URL, or
+   password. The settings button just fires a toast:
+   "Settings coming soon".
+
+3. No delete for Workspace, Channel, or Account
+   DELETE /api/messages/[messageId] exists, but there are zero
+   delete routes for workspaces, channels, or user accounts —
+   and no UI affordance for any of them. Users are permanently
+   stuck in any workspace they join with no way to leave or
+   remove themselves.
+
+4. Context menu incomplete
+   Long-press (mobile) and right-click (desktop) open a
+   context menu with emoji reactions, Reply, Copy, and Delete.
+   Forward option is completely absent. Message timestamp is
+   not shown inside the popup (it appears in the message row
+   header, not the context menu).
+
+5. Raw, unfriendly error messages exposed to users
+   Firebase errors are shown verbatim via setError(err.message),
+   producing strings like "Firebase: Error (auth/invalid-
+   credential). (auth/invalid-credential)". DB errors in API
+   routes also return error.message directly in JSON. No
+   human-readable error mapping exists anywhere.
+
+6. UI feels broken due to stacked issues
+   The h-screen + mobile keyboard combination causes jarring
+   layout shifts. The connection indicator always shows
+   "Offline" due to the Pusher subscription bug. Optimistic
+   messages disappear/reappear on re-fetch. Scroll-to-bottom
+   uses a fixed setTimeout(100ms) instead of proper scroll
+   anchoring. These issues compound into an overall broken feel.
+
+7. Typing indicator is in the wrong place
+   The typing indicator is rendered inside the input wrapper
+   at the very bottom of the page. It should sit at the bottom
+   of the message scroll area — directly above where the next
+   message will appear — as in WhatsApp/iMessage. Currently it
+   is visually detached from the message stream.
+
+
+============================================================
+  SUMMARY COUNT
+============================================================
+
+  Critical (Security) : 3
+  Bugs                : 1
+  Quality / Code Smell: 3
+  Missing Features/UX : 7
+  ─────────────────────
+  Total               : 14
+
+============================================================
