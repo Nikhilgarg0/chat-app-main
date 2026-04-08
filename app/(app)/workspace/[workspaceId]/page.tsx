@@ -17,20 +17,11 @@ export default function WorkspacePage() {
         if (res.ok) {
           const data = await res.json();
           setWorkspace(data.workspace);
-
-          // Auto-redirect to last visited channel or first channel
-          const channels = data.workspace?.channels;
-          if (channels && channels.length > 0) {
-            const lastChannelId = localStorage.getItem(`lastChannel:${workspaceId}`);
-            const target = (lastChannelId && channels.find((c: any) => c._id === lastChannelId))
-              || channels[0];
-            router.replace(`/workspace/${workspaceId}/channel/${target._id}`);
-          }
         }
       } catch (err) {}
     };
     if (workspaceId) fetchWS();
-  }, [workspaceId, router]);
+  }, [workspaceId]);
 
   return (
     <div className="flex flex-1 flex-col relative h-full bg-[var(--bg-base)] w-full">
@@ -78,15 +69,13 @@ export default function WorkspacePage() {
           This is your central hub for secure team communication.
         </p>
 
-        {!isSidebarOpen && (
-          <button 
-            onClick={toggleSidebar}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-all shadow-apple active:scale-[0.98]"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            Select a Channel
-          </button>
-        )}
+        <button 
+          onClick={() => router.push(`/workspace/${workspaceId}/browse`)}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-all shadow-apple active:scale-[0.98]"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          Browse Channels
+        </button>
       </div>
     </div>
   );

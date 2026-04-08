@@ -1,0 +1,262 @@
+================================================================================
+NEXUS — ONBOARDING FLOW: ANTIGRAVITY PROMPTS (DO IN ORDER)
+================================================================================
+
+Context for ANTIGRAVITY:
+Currently after register or Google sign-in, users are sent straight to /home
+with no guidance. New users need a multi-step onboarding wizard that runs only
+once on first login. Returning users skip it entirely.
+
+The onboarding has 4 steps:
+  1. Welcome         — greet the user, show what Nexus is.
+  2. Build profile   — avatar upload, display name, bio, custom status.
+  3. Set timezone    — timezone picker (feeds the profile timezone field).
+  4. Get started     — create a workspace OR join one with an invite code. Skippable.
+
+Detection: a new boolean field onboardingComplete on the User model. False = show
+onboarding. True = skip straight to /home.
+
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 1 — Track onboarding state + update redirect logic
+Files: models/User.ts
+       app/api/users/profile/route.ts
+       app/(auth)/register/page.tsx
+       app/(auth)/login/page.tsx
+────────────────────────────────────────────────────────────────────────────────
+
+Add onboarding state tracking and fix redirects after login/register.
+
+--- models/User.ts ---
+Add one field to the schema and IUser interface:
+  onboardingComplete: Boolean, default false.
+
+--- app/api/users/profile/route.ts ---
+In the GET handler, make sure onboardingComplete is included in the returned
+user object (it should come through automatically since it's in the schema, but
+verify it is not being stripped).
+
+In the POST handler, allow onboardingComplete to be updated. If the request body
+includes onboardingComplete: true, save it. Add it to the list of accepted fields
+alongside displayName, avatarUrl, bio, etc.
+
+--- app/(auth)/register/page.tsx ---
+In handleRegister (email/password flow), after the profile POST succeeds, change
+the redirect from router.push("/home") to router.push("/onboarding").
+
+In handleGoogleLogin, after the profile upsert, check the response JSON:
+  const data = await res.json();
+  if (data.user?.onboardingComplete) {
+    router.push("/home");
+  } else {
+    router.push("/onboarding");
+  }
+This handles the case where a Google user has already completed onboarding
+(i.e. they are signing back in, not registering for the first time).
+The profile POST already does an upsert so the onboardingComplete value is
+preserved on subsequent logins.
+
+--- app/(auth)/login/page.tsx ---
+In handleLogin (email/password flow), after signInWithEmailAndPassword succeeds,
+before redirecting, fetch the user profile to check onboardingComplete:
+  const token = await result.user.getIdToken();
+  const profRes = await fetch(`/api/users/profile?firebaseUid=${result.user.uid}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const profData = await profRes.json();
+  if (profData.user?.onboardingComplete) {
+    router.push("/home");
+  } else {
+    router.push("/onboarding");
+  }
+
+In handleGoogleLogin, apply the same check as the register page's Google handler.
+
+Do not touch any other files yet.
+
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 2 — Onboarding wizard page
+Files: app/(app)/onboarding/page.tsx  (NEW)
+Requires: Step 1
+────────────────────────────────────────────────────────────────────────────────
+
+Create the onboarding wizard at app/(app)/onboarding/page.tsx.
+
+This page does NOT use the workspace sidebar layout. It is a standalone centred
+full-screen page. Gate it: on mount check auth.onAuthStateChanged — if no user,
+redirect to /login.
+
+The wizard has 4 steps tracked by a local currentStep state (1–4). Render a
+progress indicator at the top: four dots (filled for completed/current,
+hollow for upcoming). No step numbers in text — dots only.
+
+Do not use any router.push between steps — everything stays on this one page,
+only currentStep changes.
+
+--- Step 1: Welcome ---
+Layout: centred, generous vertical spacing.
+Content:
+  - The Nexus wordmark (large, same font as the auth pages).
+  - Heading: "Welcome, [displayName]" — load the displayName from
+    auth.currentUser.displayName (available immediately from Firebase, no API call
+    needed for this step).
+  - Subtext: "Let's get your workspace set up in just a few steps."
+  - Three short feature pills in a row (icon + label):
+      ⚡ Real-time chat    🤖 AI assistant    🔒 Secure by default
+  - A single "Get started →" button that advances to step 2.
+No back button on step 1.
+
+--- Step 2: Build your profile ---
+Heading: "Make it yours"
+Subtext: "This is how your teammates will see you."
+
+Fields:
+  - AvatarUpload component (import from components/ui/AvatarUpload.tsx — built in
+    the profile feature prompts). Pre-populate with auth.currentUser.photoURL if
+    available. Store the uploaded URL in local state.
+  - Display name input — pre-filled from auth.currentUser.displayName. Required.
+  - Bio textarea — 160 char limit, live counter in bottom-right corner of the
+    textarea. Optional.
+  - Custom status input — 80 char limit. Placeholder: "e.g. Building something
+    great 🚀". Optional.
+
+Buttons: "Back" (ghost) + "Continue →" (primary, disabled if displayName empty).
+
+--- Step 3: Where are you? ---
+Heading: "Set your timezone"
+Subtext: "We'll show you teammates' local times correctly."
+
+A single <select> for timezone. Group the options under <optgroup> labels:
+  Asia     — Asia/Kolkata, Asia/Dubai, Asia/Singapore, Asia/Tokyo, Asia/Shanghai
+  Europe   — Europe/London, Europe/Paris, Europe/Berlin, Europe/Moscow
+  Americas — America/New_York, America/Chicago, America/Denver, America/Los_Angeles,
+             America/Sao_Paulo
+  Pacific  — Pacific/Auckland, Pacific/Sydney
+  Other    — UTC
+
+Attempt to auto-detect and pre-select: Intl.DateTimeFormat().resolvedOptions().timeZone.
+If the detected value is in the list, select it. Otherwise default to UTC.
+
+Below the select, show a live preview: "Your current time: [HH:MM AM/PM]" updating
+every second using the selected timezone and Intl.DateTimeFormat.
+
+Buttons: "Back" + "Continue →".
+
+--- Step 4: Get started ---
+Heading: "Join or create a workspace"
+Subtext: "Workspaces are where your team communicates."
+
+Two cards side by side (stack on mobile):
+
+  Card A — Create a workspace:
+    - Text input: "Workspace name"
+    - Button: "Create workspace"
+    - On click: POST to /api/workspaces with { name, firebaseUid: auth.currentUser.uid }
+      using authFetch. On success, complete onboarding (see below) and redirect to
+      /workspace/${data.workspace._id}.
+
+  Card B — Join with invite code:
+    - Text input: "Invite code"
+    - Button: "Join workspace"
+    - On click: POST to /api/workspaces/join with { inviteCode, firebaseUid }.
+      On success, complete onboarding and redirect to /workspace/${data.workspace._id}.
+
+Below both cards, a muted text link: "Skip for now — I'll set this up later"
+which completes onboarding and redirects to /home.
+
+Buttons at top of step: "Back" (ghost, goes to step 3). The primary actions are
+the buttons inside the cards.
+
+Completing onboarding means:
+  - POST to /api/users/profile with { firebaseUid, onboardingComplete: true,
+    displayName, avatarUrl, bio, customStatus, timezone } — send ALL collected
+    data in one call so nothing is lost.
+  - Use authFetch so the token is attached.
+
+Show an error toast if any API call fails. Do not navigate away on error.
+
+--- Saving data ---
+All form state (displayName, avatarUrl, bio, customStatus, timezone) lives in
+the top-level onboarding page component and is passed down as props to each step.
+Do not save to the API at each step — only save everything in one POST when the
+user completes step 4 (either by creating/joining a workspace, or clicking Skip).
+
+This ensures no partial profile state is written if the user abandons mid-flow.
+
+--- Styling ---
+Match the auth page aesthetic: white/surface background, the same CSS variables
+used in the register page, rounded pill buttons, clean generous spacing.
+The wizard card should be max-w-[480px] centred with auto margins.
+Animate step transitions with a simple opacity + translateY fade (CSS transition,
+not a library).
+
+
+────────────────────────────────────────────────────────────────────────────────
+STEP 3 — Guard: prevent onboarding bypass + re-entry
+Files: app/(app)/layout.tsx
+       app/(app)/onboarding/page.tsx  (small addition)
+Requires: Steps 1 and 2
+────────────────────────────────────────────────────────────────────────────────
+
+Add guards so the onboarding cannot be bypassed or re-entered.
+
+--- app/(app)/layout.tsx ---
+This is the layout that wraps /home and /workspace routes (but NOT /onboarding,
+which sits inside (app) as well). In its auth.onAuthStateChanged effect, after
+loading the user profile, add:
+
+  if (profData.user && !profData.user.onboardingComplete) {
+    router.push("/onboarding");
+    return;
+  }
+
+Place this check before any other logic that renders the app UI. This means if
+someone bookmarks /home or a workspace URL and their onboarding is not complete,
+they are redirected to finish it first.
+
+Important: the /onboarding route is inside the (app) group but must NOT be
+wrapped by this layout. Make sure app/(app)/onboarding/page.tsx is a sibling to
+layout.tsx in the (app) folder, not nested inside a subfolder that inherits this
+layout. If it already shares the layout, move the guard into a separate
+ClientGuard component that is only imported into the workspace and home layouts,
+not into the onboarding page.
+
+--- app/(app)/onboarding/page.tsx (addition) ---
+At the top of the mount effect, after confirming the user is authenticated, also
+check:
+  if (profData.user?.onboardingComplete) {
+    router.push("/home");
+    return;
+  }
+This prevents a user who has already onboarded from re-entering the wizard by
+navigating directly to /onboarding.
+
+Do not add any other logic — just these two guards.
+
+
+================================================================================
+SUMMARY OF WHAT CHANGES
+================================================================================
+
+models/User.ts                    — adds onboardingComplete: Boolean (default false)
+app/api/users/profile/route.ts    — POST accepts + saves onboardingComplete field
+app/(auth)/register/page.tsx      — redirects new users to /onboarding
+app/(auth)/login/page.tsx         — checks onboardingComplete, routes accordingly
+app/(app)/onboarding/page.tsx     — NEW 4-step wizard (welcome, profile, timezone,
+                                    workspace) with single API save on completion
+app/(app)/layout.tsx              — guard: redirects incomplete users to /onboarding
+
+Flow for new user (email):
+  Register → /onboarding (steps 1→2→3→4) → /workspace/[id] or /home
+
+Flow for new user (Google):
+  Google OAuth → profile upsert (onboardingComplete=false) → /onboarding → done
+
+Flow for returning user:
+  Login → profile check → onboardingComplete=true → /home (onboarding skipped)
+
+Flow for bypass attempt:
+  Navigate to /home or /workspace → layout guard → /onboarding
+
+================================================================================

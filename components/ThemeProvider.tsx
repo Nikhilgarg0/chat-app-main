@@ -1,45 +1,95 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { authFetch } from "@/lib/authFetch";
+import { auth } from "@/lib/firebase";
+
+type ThemeState = "light" | "dark" | "system";
 
 type ThemeContextType = {
-  theme: "light" | "dark";
+  theme: ThemeState;
+  setTheme: (value: ThemeState) => void;
   toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "dark",
+  theme: "system",
+  setTheme: () => {},
   toggleTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setThemeState] = useState<ThemeState>("system");
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem("nexus-theme") as "light" | "dark" | null;
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      if (saved === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    } else {
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("nexus-theme", next);
-    if (next === "dark") {
+  const applyThemeClass = (t: ThemeState) => {
+    if (t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const res = await authFetch(`/api/users/profile?firebaseUid=${user.uid}`);
+          const data = await res.json();
+          if (data.success && data.user?.theme) {
+            if (["light", "dark", "system"].includes(data.user.theme)) {
+              setThemeState(data.user.theme);
+              applyThemeClass(data.user.theme);
+            }
+          } else {
+            applyThemeClass("system");
+          }
+        } catch (e) {
+          applyThemeClass("system");
+        }
+      } else {
+        applyThemeClass("system");
+      }
+    });
+
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (theme === "system" && mounted) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handler = () => applyThemeClass("system");
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
+    }
+  }, [theme, mounted]);
+
+  const setTheme = (value: ThemeState) => {
+    setThemeState(value);
+    applyThemeClass(value);
+    
+    if (auth.currentUser) {
+      authFetch("/api/users/profile", {
+        method: "POST",
+        body: JSON.stringify({
+          firebaseUid: auth.currentUser.uid,
+          email: auth.currentUser.email || "no-email@example.com",
+          displayName: auth.currentUser.displayName || "User",
+          theme: value
+        })
+      }).catch(console.error);
+    }
+  };
+
+  const toggleTheme = () => {
+    const nextMap: Record<ThemeState, ThemeState> = {
+      light: "dark",
+      dark: "system",
+      system: "light"
+    };
+    setTheme(nextMap[theme]);
   };
 
   if (!mounted) {
@@ -47,7 +97,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -38,7 +38,7 @@ export default function RegisterPage() {
         throw new Error("Failed to create profile in database");
       }
 
-      router.push("/home");
+      router.push("/onboarding");
     } catch (err: any) {
       setError(getErrorMessage(err));
     }
@@ -50,7 +50,7 @@ export default function RegisterPage() {
       const result = await signInWithGoogle();
       const user = result.user;
       
-      await fetch("/api/users/profile", {
+      const res = await fetch("/api/users/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,7 +61,12 @@ export default function RegisterPage() {
         }),
       });
       
-      router.push("/home");
+      const data = await res.json();
+      if (data.user?.onboardingComplete) {
+        router.push("/home");
+      } else {
+        router.push("/onboarding");
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import UserAvatar from "@/components/ui/UserAvatar";
+import Link from "next/link";
 
 const PRIMARY_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉"];
 const EXTRA_EMOJIS = ["😮", "😢", "👏", "🎊", "💯"];
@@ -207,6 +208,7 @@ export default function MessageBubble({
             alignItems: "flex-start",
             gap: 12,
             padding: "2px 16px",
+            borderLeft: message.highlight ? "3px solid #EAB308" : "3px solid transparent",
             borderRadius: 4,
             overflow: "hidden",
             background: rowHovered ? "var(--bg-elevated)" : "transparent",
@@ -232,7 +234,11 @@ export default function MessageBubble({
                     color: "var(--ai-accent)", background: "var(--bg-surface)",
                   }}>AI</div>
                 )
-                : <UserAvatar avatarUrl={message.avatarUrl} displayName={message.author} size={36} />
+                : (
+                  <Link href={`/user/${encodeURIComponent(message.author)}`}>
+                    <UserAvatar avatarUrl={message.avatarUrl} displayName={message.author} size={36} />
+                  </Link>
+                )
               }
             </div>
           ) : (
@@ -257,7 +263,13 @@ export default function MessageBubble({
             {!isGrouped && (
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: nameColor, lineHeight: 1 }}>
-                  {displayName}
+                  {isAI ? (
+                    displayName
+                  ) : (
+                    <Link href={`/user/${encodeURIComponent(message.author)}`} style={{ color: "inherit", textDecoration: "none" }}>
+                      {displayName}
+                    </Link>
+                  )}
                 </span>
                 <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
                   {message.time}

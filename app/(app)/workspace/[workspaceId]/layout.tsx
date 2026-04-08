@@ -12,8 +12,6 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useSidebar } from "@/components/SidebarContext";
 import UserAvatar from "@/components/ui/UserAvatar";
 import Toast from "@/components/ui/Toast";
-import ProfileSettingsModal from "@/components/ProfileSettingsModal";
-
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { workspaceId, channelId } = useParams();
   const router = useRouter();
@@ -67,7 +65,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       try {
         const [profRes, wsRes] = await Promise.all([
           authFetch(`/api/users/profile?firebaseUid=${user.uid}`),
-          authFetch(`/api/workspaces/${workspaceId}`)
+          authFetch(`/api/workspaces/${workspaceId}?firebaseUid=${user.uid}`)
         ]);
 
         if (profRes.ok) {
@@ -77,7 +75,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
         if (wsRes.ok) {
           const wsData = await wsRes.json();
-          setWorkspace(wsData.workspace);
+          setWorkspace({ 
+            ...wsData.workspace, 
+            channels: wsData.joinedChannels || wsData.workspace.channels 
+          });
         } else {
           router.push("/home");
         }
@@ -150,6 +151,18 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       localStorage.setItem(`lastChannel:${workspaceId}`, channelId as string);
     }
   }, [channelId, workspaceId]);
+
+  // Global Shortcut for Profile
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        router.push("/profile");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim() || !workspaceId) return;
@@ -282,6 +295,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   </Link>
                 );
               })}
+              
+              <Link href={`/workspace/${workspace._id}/browse`} onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-2 px-3 py-2 mt-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition group">
+                <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
+                <span className="font-medium tracking-wide">Browse channels</span>
+              </Link>
 
               {showChannelInput && (
                 <div className="px-3 py-1.5 animate-slide-up flex gap-2 items-center">
@@ -331,10 +349,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="px-3 space-y-0.5">
                   {Array.from(onlineUsers).map((uname) => (
-                    <div key={uname} className="flex items-center px-3 py-1 min-h-[44px] md:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
+                    <Link href={`/user/${encodeURIComponent(uname)}`} key={uname} onClick={() => setIsSidebarOpen(false)} className="flex items-center px-3 py-1 min-h-[44px] md:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors cursor-pointer">
                       <div className="w-2 h-2 rounded-full bg-[var(--success)] mr-3"></div>
                       <span className="truncate">{uname}</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -342,84 +360,49 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Bottom User Area */}
-          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2" style={{ position: "relative" }}>
-
-            {/* User dropdown menu */}
-            {showUserMenu && (
-              <div
-                ref={userMenuRef}
-                style={{
-                  position: "absolute",
-                  bottom: "calc(100% + 6px)",
-                  left: 12,
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                  overflow: "hidden",
-                  minWidth: 160,
-                  zIndex: 50,
-                  animation: "ctxFadeIn 0.14s ease",
-                }}
-              >
-                <div style={{ padding: "6px 0" }}>
-                  <div style={{ padding: "8px 16px 6px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                    {userProfile?.displayName || "Guest"}
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      width: "100%", padding: "10px 16px",
-                      textAlign: "left", background: "transparent",
-                      border: "none", color: "#ff3b30",
-                      fontSize: 14, cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: 8,
-                    }}
-                  >
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    Sign out
-                  </button>
-                </div>
+          <div className="p-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[var(--border)] shrink-0 flex flex-col gap-2">
+            {/* Top Row: User details */}
+            <Link
+              href="/profile"
+              className="flex items-center gap-2.5 p-2 w-full rounded-md hover:bg-[var(--bg-elevated)] transition cursor-pointer"
+            >
+              <div className="shrink-0 rounded-full ring-2 ring-transparent transition-all">
+                <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={36} />
               </div>
-            )}
-
-            <div className="flex items-center gap-2.5 truncate flex-1 min-w-0 pr-2">
-              <div
-                className="cursor-pointer shrink-0 rounded-full ring-2 ring-transparent hover:ring-[var(--accent)] transition-all"
-                onClick={() => setShowUserMenu(v => !v)}
-                title="Account menu"
-              >
-                <UserAvatar avatarUrl={userProfile?.avatarUrl} displayName={userProfile?.displayName || "Guest"} size={32} />
+              <div className="flex flex-col min-w-0 pr-2 overflow-hidden w-full">
+                <span className="text-sm font-medium text-[var(--text-primary)] truncate">{userProfile?.displayName || "Guest"}</span>
+                {userProfile?.customStatus && (
+                  <span className="text-xs text-[var(--text-secondary)] truncate">{userProfile.customStatus}</span>
+                )}
               </div>
-              <span className="text-sm font-medium text-[var(--text-primary)] truncate">{userProfile?.displayName || "Guest"}</span>
-            </div>
+            </Link>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleLogout}
-                className="w-11 h-11 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex md:hidden items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-red-500 hover:text-red-600"
-                title="Sign out"
-              >
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-              </button>
-              <button
-                onClick={() => setShowSettingsModal(true)}
-                className="hidden md:flex w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            {/* Bottom Row: Actions */}
+            <div className="flex items-center space-x-2 w-full px-2 mt-1">
+              <Link
+                href="/profile"
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
                 title="Settings"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-              </button>
+              </Link>
+
               <button
                 onClick={toggleTheme}
-                className="w-11 h-11 md:w-8 md:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
                 title="Toggle Theme"
               >
-                <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'dark' ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-                  <span className="text-xl md:text-base">☀️</span>
-                </div>
-                <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'light' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                  <span className="text-xl md:text-base">🌙</span>
-                </div>
+                {theme === "light" && <span className="text-sm text-yellow-500">☀️</span>}
+                {theme === "dark" && <span className="text-sm text-indigo-400">🌙</span>}
+                {theme === "system" && <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>}
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--bg-elevated)] hover:text-red-500 transition text-[var(--text-secondary)]"
+                title="Sign out"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
               </button>
             </div>
           </div>
@@ -433,13 +416,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       
-      {showSettingsModal && userProfile && (
-        <ProfileSettingsModal
-          userProfile={userProfile}
-          onClose={() => setShowSettingsModal(false)}
-          onUpdate={(newProfile) => setUserProfile(newProfile)}
-        />
-      )}
     </div>
   );
 }

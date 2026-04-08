@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import MessageBubble from "@/components/chat/MessageBubble";
 import Toast from "@/components/ui/Toast";
 import { auth } from "@/lib/firebase";
 import { useSidebar } from "@/components/SidebarContext";
+import { Lock } from "lucide-react";
+import Link from "next/link";
 
 const AI_COMMANDS = [
   { command: "/ask", description: "Ask AI a question about this conversation" },
@@ -16,7 +18,9 @@ const AI_COMMANDS = [
 
 export default function ChannelPage() {
   const { channelId, workspaceId } = useParams();
+  const router = useRouter();
   const [username, setUsername] = useState("");
+  const [notificationPrefs, setNotificationPrefs] = useState({ mentions: true, allMessages: false, sounds: true });
   const [messageInput, setMessageInput] = useState("");
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const [restInput, setRestInput] = useState("");
@@ -34,22 +38,34 @@ export default function ChannelPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore } = useSocket(channelId as string);
+  const [isMember, setIsMember] = useState<boolean | null>(null);
+  const [joining, setJoining] = useState(false);
+
+  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore } = useSocket(channelId as string, username, notificationPrefs);
   const { isSidebarOpen, toggleSidebar } = useSidebar();
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
-          const res = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
-          if (res.ok) {
-            const data = await res.json();
-            setUsername(data.user?.displayName || user.email?.split("@")[0] || "User");
-          } else {
-            setUsername(user.email?.split("@")[0] || "User");
+          const memRes = await fetch(`/api/channels/${channelId}/membership?firebaseUid=${user.uid}`);
+          const memData = memRes.ok ? await memRes.json() : { isMember: false };
+          setIsMember(memData.isMember);
+
+          if (memData.isMember) {
+            const res = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
+            if (res.ok) {
+              const data = await res.json();
+              setUsername(data.user?.displayName || user.email?.split("@")[0] || "User");
+              if (data.user?.notificationPrefs) {
+                setNotificationPrefs(data.user.notificationPrefs);
+              }
+            } else {
+              setUsername(user.email?.split("@")[0] || "User");
+            }
           }
         } catch (e) {
-          setUsername(user.email?.split("@")[0] || "User");
+          setIsMember(false);
         }
       }
     });
@@ -70,6 +86,91 @@ export default function ChannelPage() {
 
     return () => unsub();
   }, [workspaceId, channelId]);
+
+  const handleJoinChannel = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/channels/${channelId}`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${await user.getIdToken()}`
+        },
+        body: JSON.stringify({ action: "join" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsMember(true);
+        const profileRes = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
+        if (profileRes.ok) {
+          const pdata = await profileRes.json();
+          setUsername(pdata.user?.displayName || user.email?.split("@")[0] || "User");
+          if (pdata.user?.notificationPrefs) setNotificationPrefs(pdata.user.notificationPrefs);
+        } else {
+          setUsername(user.email?.split("@")[0] || "User");
+        }
+      } else {
+        setToast("Failed to join channel.");
+      }
+    } catch {
+      setToast("Error joining channel.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  if (isMember === null) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)] w-full">
+        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (isMember === false) {
+    return (
+      <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full relative">
+        {/* Header without hamburger if needed, or simple header */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
+          <div className="flex items-center flex-1">
+            {!isSidebarOpen && (
+              <button onClick={toggleSidebar} className="p-2 -ml-2 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition-colors">
+                <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-1 flex-1 lg:flex-none">
+            <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
+            <h2 className="text-[var(--text-primary)] font-display font-bold text-base tracking-tight">{channelName}</h2>
+          </div>
+          <div className="flex-[1]"></div>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-slide-up">
+          <div className="w-16 h-16 rounded-[20px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center shadow-sm mb-6">
+            <Lock className="w-8 h-8 text-[var(--text-secondary)]" />
+          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">#{channelName}</h2>
+          <p className="text-[var(--text-secondary)] mb-8">You haven't joined this channel yet.</p>
+          
+          <button 
+            onClick={handleJoinChannel} 
+            disabled={joining}
+            className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-full transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {joining ? "Joining..." : "Join channel"}
+          </button>
+          
+          <Link href={`/workspace/${workspaceId}/browse`} className="mt-6 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+            Go back
+          </Link>
+        </div>
+        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      </div>
+    );
+  }
 
   const lastMessageId = (messages[messages.length - 1] as any)?._id
     ?? (messages[messages.length - 1] as any)?.msgId

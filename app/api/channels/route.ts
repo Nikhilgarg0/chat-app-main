@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       workspaceId,
       name: name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"),
       createdBy: uid,
+      members: [uid],
     });
 
     workspace.channels.push(channel._id);

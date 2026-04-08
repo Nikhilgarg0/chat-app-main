@@ -5,7 +5,12 @@ import { verifyToken } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
-    const { firebaseUid, email, displayName, avatarUrl } = await req.json();
+    const body = await req.json();
+    const { 
+      firebaseUid, email, displayName, avatarUrl,
+      bio, customStatus, timezone, socialLinks, 
+      notificationPrefs, theme, coverColor, onboardingComplete
+    } = body;
 
     if (!firebaseUid || !email || !displayName) {
       return NextResponse.json(
@@ -16,9 +21,49 @@ export async function POST(req: Request) {
 
     await connectDB();
 
+    const updateData: any = {
+      firebaseUid,
+      email,
+      displayName: typeof displayName === 'string' ? displayName.trim() : displayName,
+    };
+
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (typeof bio === "string") updateData.bio = bio.trim().substring(0, 160);
+    if (typeof customStatus === "string") updateData.customStatus = customStatus.trim().substring(0, 80);
+    if (typeof timezone === "string") updateData.timezone = timezone.trim();
+    
+    if (socialLinks && typeof socialLinks === "object") {
+      updateData.socialLinks = {
+        twitter: typeof socialLinks.twitter === "string" ? socialLinks.twitter.trim() : undefined,
+        github: typeof socialLinks.github === "string" ? socialLinks.github.trim() : undefined,
+        linkedin: typeof socialLinks.linkedin === "string" ? socialLinks.linkedin.trim() : undefined,
+        website: typeof socialLinks.website === "string" ? socialLinks.website.trim() : undefined,
+      };
+    }
+
+    if (notificationPrefs && typeof notificationPrefs === "object") {
+      updateData.notificationPrefs = {
+        mentions: typeof notificationPrefs.mentions === "boolean" ? notificationPrefs.mentions : true,
+        allMessages: typeof notificationPrefs.allMessages === "boolean" ? notificationPrefs.allMessages : false,
+        sounds: typeof notificationPrefs.sounds === "boolean" ? notificationPrefs.sounds : true,
+      };
+    }
+
+    if (typeof theme === "string" && ["light", "dark", "system"].includes(theme)) {
+      updateData.theme = theme;
+    }
+
+    if (typeof coverColor === "string") {
+      updateData.coverColor = coverColor.trim();
+    }
+
+    if (typeof onboardingComplete === "boolean") {
+      updateData.onboardingComplete = onboardingComplete;
+    }
+
     let user = await User.findOneAndUpdate(
       { firebaseUid },
-      { firebaseUid, email, displayName, avatarUrl },
+      { $set: updateData },
       { upsert: true, new: true }
     );
 

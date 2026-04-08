@@ -1,26 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { authFetch } from "@/lib/authFetch";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (!auth.currentUser) {
         router.push("/login");
       }
-    }, 3000);
+    }, 5000);
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       clearTimeout(timeoutId);
       if (!currentUser) {
         router.push("/login");
       } else {
+        try {
+          const profRes = await authFetch(`/api/users/profile?firebaseUid=${currentUser.uid}`);
+          if (profRes.ok) {
+            const profData = await profRes.json();
+            if (profData.user && !profData.user.onboardingComplete) {
+              if (pathname !== "/onboarding") {
+                router.push("/onboarding");
+                return;
+              }
+            }
+          }
+        } catch (e) {}
         setLoading(false);
       }
     });
@@ -29,7 +43,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [router]);
+  }, [router, pathname]);
 
   if (loading) {
     return (

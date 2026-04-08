@@ -18,8 +18,17 @@ export default function LoginPage() {
     setError("");
     if (!email.trim() || !password.trim()) return;
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/home");
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const token = await result.user.getIdToken();
+      const profRes = await fetch(`/api/users/profile?firebaseUid=${result.user.uid}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const profData = await profRes.json();
+      if (profData.user?.onboardingComplete) {
+        router.push("/home");
+      } else {
+        router.push("/onboarding");
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     }
@@ -31,7 +40,7 @@ export default function LoginPage() {
       const result = await signInWithGoogle();
       const user = result.user;
       
-      await fetch("/api/users/profile", {
+      const res = await fetch("/api/users/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,7 +51,12 @@ export default function LoginPage() {
         }),
       });
       
-      router.push("/home");
+      const data = await res.json();
+      if (data.user?.onboardingComplete) {
+        router.push("/home");
+      } else {
+        router.push("/onboarding");
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     }

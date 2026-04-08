@@ -20,6 +20,9 @@ export async function GET(req: Request, context: { params: Promise<{ workspaceId
     // though Mongoose handles this via refs if 'Channel' is registered
     await Channel.init();
 
+    const url = new URL(req.url);
+    const firebaseUid = url.searchParams.get("firebaseUid");
+
     const workspace = await Workspace.findById(params.workspaceId).populate("channels");
 
     if (!workspace) {
@@ -27,6 +30,12 @@ export async function GET(req: Request, context: { params: Promise<{ workspaceId
         { success: false, error: "Workspace not found" },
         { status: 404 }
       );
+    }
+
+    if (firebaseUid) {
+      const allChannels = workspace.channels;
+      const joinedChannels = allChannels.filter((c: any) => c.members && c.members.includes(firebaseUid));
+      return NextResponse.json({ success: true, workspace, allChannels, joinedChannels });
     }
 
     return NextResponse.json({ success: true, workspace });

@@ -2,8 +2,9 @@
 import { authFetch } from "@/lib/authFetch";
 import { useEffect, useRef, useState } from "react";
 import { pusherClient } from "@/lib/pusher-client";
+import { showNotification, playNotificationSound } from "@/lib/notifications";
 
-export function useSocket(channelId) {
+export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [connected, setConnected] = useState(false);
@@ -56,7 +57,6 @@ export function useSocket(channelId) {
     channel.bind("new-message", (data) => {
       setMessages((prev) => {
         if (data.msgId && prev.some((m) => m.msgId === data.msgId)) {
-          // B3 — optimistic message exists, patch it with the real _id from server
           return prev.map((m) =>
             m.msgId === data.msgId
               ? { ...m, _id: data._id, status: "sent" }
@@ -66,6 +66,31 @@ export function useSocket(channelId) {
         if (prev.some((m) => m.content === data.content && m.time === data.time && m.author === data.author)) {
           return prev;
         }
+
+        // Handle notifications
+        if (currentUsername && data.author !== currentUsername) {
+          let shouldNotify = false;
+          let shouldHighlight = false;
+
+          if (notificationPrefs?.mentions && data.content.toLowerCase().includes(`@${currentUsername.toLowerCase()}`)) {
+            shouldNotify = true;
+            shouldHighlight = true;
+          } else if (notificationPrefs?.allMessages) {
+            shouldNotify = true;
+          }
+
+          if (shouldNotify) {
+            showNotification(`New message from ${data.author}`, data.content);
+          }
+          if (notificationPrefs?.sounds) {
+            playNotificationSound();
+          }
+
+          if (shouldHighlight) {
+            data.highlight = true; // Set a flag so UI knows to highlight it
+          }
+        }
+
         return [...prev, data];
       });
     });
