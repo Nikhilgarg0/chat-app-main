@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { pusherServer } from "@/lib/pusher";
+import { pusherServer } from "@/lib/pusher-server";
 
 export async function POST(req: Request) {
   try {
     const { workspaceId, username, status } = await req.json();
-    
+
     if (!workspaceId || !username || !status) {
       return NextResponse.json({ success: false, error: "Missing fields" }, { status: 400 });
     }

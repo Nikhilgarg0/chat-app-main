@@ -6,11 +6,13 @@ import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
-import { pusherClient } from "@/lib/pusher";
+import { pusherClient } from "@/lib/pusher-client";
+import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/components/ThemeProvider";
 import { useSidebar } from "@/components/SidebarContext";
 import UserAvatar from "@/components/ui/UserAvatar";
 import Toast from "@/components/ui/Toast";
+import ProfileSettingsModal from "@/components/ProfileSettingsModal";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { workspaceId, channelId } = useParams();
@@ -27,6 +29,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [showChannelInput, setShowChannelInput] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const [touchStartX, setTouchStartX] = useState(0);
@@ -63,8 +66,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
       try {
         const [profRes, wsRes] = await Promise.all([
-          fetch(`/api/users/profile?firebaseUid=${user.uid}`),
-          fetch(`/api/workspaces/${workspaceId}`)
+          authFetch(`/api/users/profile?firebaseUid=${user.uid}`),
+          authFetch(`/api/workspaces/${workspaceId}`)
         ]);
 
         if (profRes.ok) {
@@ -93,7 +96,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
     const uname = userProfile.displayName;
 
-    fetch("/api/pusher/presence", {
+    authFetch("/api/pusher/presence", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId, username: uname, status: "online" })
@@ -112,7 +115,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     });
 
     return () => {
-      fetch("/api/pusher/presence", {
+      authFetch("/api/pusher/presence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, username: uname, status: "offline" })
@@ -152,7 +155,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     if (!newChannelName.trim() || !workspaceId) return;
     setIsCreatingChannel(true);
     try {
-      const res = await fetch("/api/channels", {
+      const res = await authFetch("/api/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -180,7 +183,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   if (loading || !workspace) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)]">
         <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
       </main>
     );
@@ -188,7 +191,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   return (
     <div
-      className="flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden font-body relative"
+      className="flex h-[100dvh] bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden font-body relative"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -197,21 +200,21 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in duration-200"
+          className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in duration-200"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar - Apple Aesthetic */}
       <div
-        className={`fixed lg:relative z-40 h-full bg-[var(--bg-surface)] border-r border-[var(--border)] shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
+        className={`fixed md:relative z-40 h-full bg-[var(--bg-surface)] border-r border-[var(--border)] shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden
           ${isSidebarOpen
-            ? "translate-x-0 w-[80vw] max-w-[300px] shadow-[var(--shadow)] lg:shadow-none lg:w-[240px] lg:opacity-100"
-            : "-translate-x-full w-[80vw] max-w-[300px] lg:translate-x-0 lg:w-0 lg:opacity-0 lg:border-r-0"
+            ? "translate-x-0 w-[80vw] max-w-[300px] shadow-[var(--shadow)] md:shadow-none md:w-[240px] md:opacity-100"
+            : "-translate-x-full w-[80vw] max-w-[300px] md:translate-x-0 md:w-0 md:opacity-0 md:border-r-0"
           }
         `}
       >
-        <div className="w-[80vw] max-w-[300px] lg:w-[240px] h-full flex flex-col pt-4 relative">
+        <div className="w-[80vw] max-w-[300px] md:w-[240px] h-full flex flex-col pt-4 relative">
 
           {/* Workspace Brand Header */}
           <div className="px-5 pb-4 flex items-start justify-between">
@@ -233,7 +236,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
             <button
               onClick={toggleSidebar}
-              className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 hidden lg:flex"
+              className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 hidden md:flex"
               title="Hide Sidebar"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
@@ -241,7 +244,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 lg:hidden flex"
+              className="p-1.5 -me-1 -mt-0.5 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 md:hidden flex"
               title="Close Sidebar"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -269,9 +272,9 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                     key={ch._id}
                     href={`/workspace/${workspace._id}/channel/${ch._id}`}
                     onClick={() => setIsSidebarOpen(false)}
-                    className={`flex items-center px-3 py-1.5 min-h-[48px] lg:min-h-[32px] text-[14px] rounded-lg transition-colors truncate relative group ${isActive
-                        ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                    className={`flex items-center px-3 py-1.5 min-h-[48px] md:min-h-[32px] text-[14px] rounded-lg transition-colors truncate relative group ${isActive
+                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                       }`}
                   >
                     <span className={`mr-2.5 font-mono ${isActive ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"}`}>#</span>
@@ -328,7 +331,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="px-3 space-y-0.5">
                   {Array.from(onlineUsers).map((uname) => (
-                    <div key={uname} className="flex items-center px-3 py-1 min-h-[44px] lg:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
+                    <div key={uname} className="flex items-center px-3 py-1 min-h-[44px] md:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-default">
                       <div className="w-2 h-2 rounded-full bg-[var(--success)] mr-3"></div>
                       <span className="truncate">{uname}</span>
                     </div>
@@ -339,7 +342,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Bottom User Area */}
-          <div className="p-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2" style={{ position: "relative" }}>
+          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[var(--border)] shrink-0 flex items-center justify-between gap-2" style={{ position: "relative" }}>
 
             {/* User dropdown menu */}
             {showUserMenu && (
@@ -393,22 +396,29 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => setToast("Settings coming soon")}
-                className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                onClick={handleLogout}
+                className="w-11 h-11 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex md:hidden items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-red-500 hover:text-red-600"
+                title="Sign out"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              </button>
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="hidden md:flex w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 title="Settings"
               >
-                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
               </button>
               <button
                 onClick={toggleTheme}
-                className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
+                className="w-11 h-11 md:w-8 md:h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center hover:bg-[var(--border-strong)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] overflow-hidden relative"
                 title="Toggle Theme"
               >
                 <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'dark' ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-                  <span className="text-xl lg:text-base">☀️</span>
+                  <span className="text-xl md:text-base">☀️</span>
                 </div>
                 <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${theme === 'light' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                  <span className="text-xl lg:text-base">🌙</span>
+                  <span className="text-xl md:text-base">🌙</span>
                 </div>
               </button>
             </div>
@@ -422,6 +432,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       </div>
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      
+      {showSettingsModal && userProfile && (
+        <ProfileSettingsModal
+          userProfile={userProfile}
+          onClose={() => setShowSettingsModal(false)}
+          onUpdate={(newProfile) => setUserProfile(newProfile)}
+        />
+      )}
     </div>
   );
 }

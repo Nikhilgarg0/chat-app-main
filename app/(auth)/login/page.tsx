@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth, signInWithGoogle } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { getErrorMessage } from "@/lib/utils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/home");
     } catch (err: any) {
-      setError(err.message);
+      setError(getErrorMessage(err));
     }
   };
 
@@ -43,7 +44,7 @@ export default function LoginPage() {
       
       router.push("/home");
     } catch (err: any) {
-      setError(err.message);
+      setError(getErrorMessage(err));
     }
   };
 

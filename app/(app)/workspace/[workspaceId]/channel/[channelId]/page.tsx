@@ -297,7 +297,7 @@ export default function ChannelPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
       {/* Header - Glassmorphism */}
-      <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
+      <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
 
         {/* Left Side: Hamburger */}
         <div className="flex items-center flex-1">
@@ -307,7 +307,7 @@ export default function ChannelPage() {
               className="p-2 -ml-2 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               title="Open Sidebar"
             >
-              <svg className="w-6 h-6 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
           )}
         </div>
@@ -315,14 +315,14 @@ export default function ChannelPage() {
         {/* Center: Channel Name */}
         <div className="flex items-center justify-center gap-1 flex-1 lg:flex-none">
           <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
-          <h2 className="text-[var(--text-primary)] font-display font-bold text-base lg:text-lg tracking-tight truncate max-w-[140px] sm:max-w-none text-center">{channelName}</h2>
+          <h2 className="text-[var(--text-primary)] font-display font-bold text-base md:text-lg tracking-tight truncate max-w-[140px] sm:max-w-none text-center">{channelName}</h2>
         </div>
 
         {/* Right Side: Status Pill */}
         <div className="flex items-center justify-end flex-1">
-          <div className="flex items-center gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
+          <div className="flex items-center gap-1.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-sm">
             <div className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--success)]" : "bg-red-400 animate-pulse"}`}></div>
-            <span className="text-[9px] lg:text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "Live" : "Offline"}</span>
+            <span className="text-[9px] md:text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">{connected ? "Live" : "Offline"}</span>
           </div>
         </div>
 
@@ -391,11 +391,38 @@ export default function ChannelPage() {
           </div>
         )}
 
+        {/* Typing Indicator */}
+        {(() => {
+          const activeTypers = typingUsers.filter((u: string) => u !== username);
+          if (activeTypers.length === 0) return null;
+          const verb = activeTypers.length === 1 ? 'is' : 'are';
+          let names: string;
+          if (activeTypers.length === 1) {
+            names = activeTypers[0];
+          } else if (activeTypers.length === 2) {
+            names = `${activeTypers[0]} and ${activeTypers[1]}`;
+          } else {
+            names = `${activeTypers[0]}, ${activeTypers[1]} and ${activeTypers.length - 2} other${activeTypers.length - 2 > 1 ? 's' : ''}`;
+          }
+          return (
+            <div className="flex items-center gap-1.5 animate-slide-up px-3 py-1.5 mt-2 mb-2 ml-4 md:ml-6 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm self-start">
+              <span className="text-[12px] text-[var(--text-tertiary)] font-medium italic">
+                {names} {verb} typing
+              </span>
+              <div className="flex gap-1 ml-1">
+                <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          );
+        })()}
+
         <div ref={bottomRef} className="h-4" />
       </div>
 
       {/* Input wrapper - Glassmorphism */}
-      <div className="p-4 bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] border-t border-[var(--border)] z-20 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
+      <div className="p-4 bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] border-t border-[var(--border)] z-20 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="max-w-[1000px] mx-auto flex flex-col gap-0">
 
           {/* Reply bar — normal flow, sits above the input bar */}
@@ -434,32 +461,7 @@ export default function ChannelPage() {
             </div>
           )}
 
-          {/* Typing Indicator — normal flow, sits above the input bar */}
-          {(() => {
-            const activeTypers = typingUsers.filter((u: string) => u !== username);
-            if (activeTypers.length === 0) return null;
-            const verb = activeTypers.length === 1 ? 'is' : 'are';
-            let names: string;
-            if (activeTypers.length === 1) {
-              names = activeTypers[0];
-            } else if (activeTypers.length === 2) {
-              names = `${activeTypers[0]} and ${activeTypers[1]}`;
-            } else {
-              names = `${activeTypers[0]}, ${activeTypers[1]} and ${activeTypers.length - 2} other${activeTypers.length - 2 > 1 ? 's' : ''}`;
-            }
-            return (
-              <div className="flex items-center gap-1.5 animate-slide-up px-2 py-1 mb-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm self-start">
-                <span className="text-[11px] text-[var(--text-tertiary)] font-medium italic">
-                  {names} {verb} typing
-                </span>
-                <div className="flex gap-0.5 ml-1">
-                  <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-1 h-1 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                </div>
-              </div>
-            );
-          })()}
+
 
           {/* Input bar row — relative so the command menu can anchor to it */}
           <div className="relative group">
@@ -468,7 +470,7 @@ export default function ChannelPage() {
             {showMenu && filteredCommands.length > 0 && (
               <div
                 ref={menuRef}
-                className="absolute bottom-full left-0 right-0 lg:left-4 lg:right-auto mb-3 w-full lg:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+                className="absolute bottom-full left-0 right-0 md:left-4 md:right-auto mb-3 w-full md:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[12px] p-1.5 shadow-apple z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
               >
                 <div className="text-[var(--ai-accent)] text-[10px] font-bold tracking-widest uppercase mb-1 px-2 pt-1 flex items-center gap-1.5">
                   ✦ AI Command
@@ -489,7 +491,7 @@ export default function ChannelPage() {
             )}
 
             {/* Input Bar */}
-            <div className={`w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] p-[4px] lg:pr-[6px] transition-all relative z-10 min-h-[48px] ${replyTo ? "rounded-b-[20px] rounded-t-none" : "rounded-[20px]"}`}>
+            <div className={`w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] p-[4px] md:pr-[6px] transition-all relative z-10 min-h-[48px] ${replyTo ? "rounded-b-[20px] rounded-t-none" : "rounded-[20px]"}`}>
               <div className="pl-3 md:pl-4 py-1 flex-1 flex items-center gap-2 h-full">
                 {activeCommand && (
                   <span style={{
@@ -521,7 +523,7 @@ export default function ChannelPage() {
               <button
                 onClick={handleSend}
                 disabled={!messageInput.trim() || !connected || !username || isThinking || isSending}
-                className="w-[44px] h-[44px] lg:w-8 lg:h-8 rounded-[16px] lg:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
+                className="w-[44px] h-[44px] md:w-8 md:h-8 rounded-[16px] md:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
               >
                 {(isThinking || isSending) ? (
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -529,7 +531,7 @@ export default function ChannelPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 lg:w-4 lg:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                  <svg className="w-5 h-5 md:w-4 md:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                 )}
               </button>
             </div>

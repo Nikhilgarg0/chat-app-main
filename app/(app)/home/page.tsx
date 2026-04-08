@@ -1,8 +1,10 @@
 "use client";
 
+import { authFetch } from "@/lib/authFetch";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signOut } from "firebase/auth";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -19,21 +21,21 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  
+
   // UI state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) { 
-        router.push("/login"); 
-        return; 
+      if (!user) {
+        router.push("/login");
+        return;
       }
       try {
         const [profRes, wsRes] = await Promise.all([
-          fetch(`/api/users/profile?firebaseUid=${user.uid}`),
-          fetch(`/api/workspaces?firebaseUid=${user.uid}`)
+          authFetch(`/api/users/profile?firebaseUid=${user.uid}`),
+          authFetch(`/api/workspaces?firebaseUid=${user.uid}`)
         ]);
 
         if (profRes.ok) {
@@ -63,7 +65,7 @@ export default function HomePage() {
     setIsCreating(true);
 
     try {
-      const res = await fetch("/api/workspaces", {
+      const res = await authFetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,14 +74,14 @@ export default function HomePage() {
         }),
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to create workspace");
       }
-      
-      router.push(`/workspace/${data.workspace._id}`); 
+
+      router.push(`/workspace/${data.workspace._id}`);
     } catch (err: any) {
-      setError(err.message);
+      setError(getErrorMessage(err));
       setIsCreating(false);
     }
   };
@@ -90,7 +92,7 @@ export default function HomePage() {
     setIsJoining(true);
 
     try {
-      const res = await fetch("/api/workspaces/join", {
+      const res = await authFetch("/api/workspaces/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,10 +105,10 @@ export default function HomePage() {
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to join workspace");
       }
-      
+
       router.push(`/workspace/${data.workspace._id}`);
     } catch (err: any) {
-      setError(err.message);
+      setError(getErrorMessage(err));
       setIsJoining(false);
     }
   };
@@ -122,14 +124,14 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)]">
         <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] font-body">
+    <main className="flex min-h-[100dvh] flex-col bg-[var(--bg-base)] text-[var(--text-primary)] font-body">
       {/* Top Navbar */}
       <nav className="flex items-center justify-between px-4 py-3 md:px-8 md:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] sticky top-0 z-50">
         <div className="flex items-center gap-2">
@@ -161,8 +163,8 @@ export default function HomePage() {
 
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {workspaces.map((ws: any) => (
-            <div 
-              key={ws._id} 
+            <div
+              key={ws._id}
               className="group flex flex-col justify-between p-5 rounded-[16px] bg-[var(--bg-surface)] border border-[var(--border)] shadow-apple-sm hover:shadow-apple transition-all"
             >
               <div className="flex justify-between items-start mb-4">
@@ -176,7 +178,7 @@ export default function HomePage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                   <span className="text-xs font-medium">{ws.members?.length || 1} Members</span>
                 </div>
-                <Button 
+                <Button
                   onClick={() => router.push(`/workspace/${ws._id}`)}
                   className="h-9 px-4 rounded-[980px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-0 transition-all text-sm font-medium focus:ring-0 active:scale-[0.98]"
                 >
@@ -187,11 +189,11 @@ export default function HomePage() {
           ))}
 
           {/* New Workspace Card */}
-          <div 
+          <div
             onClick={() => { setShowCreateForm(true); setShowJoinForm(false); }}
             className={`group flex flex-col justify-center items-center p-5 rounded-[16px] border border-dashed transition-all cursor-pointer min-h-[140px]
-              ${showCreateForm 
-                ? "border-[var(--accent)] bg-[var(--bg-surface)] cursor-default shadow-apple" 
+              ${showCreateForm
+                ? "border-[var(--accent)] bg-[var(--bg-surface)] cursor-default shadow-apple"
                 : "border-[var(--border-strong)] hover:border-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"}`}
           >
             {!showCreateForm ? (
@@ -209,7 +211,7 @@ export default function HomePage() {
                   onKeyDown={e => e.key === "Enter" && handleCreateWorkspace()}
                   className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] px-[14px] py-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
                 />
-                <Button 
+                <Button
                   onClick={handleCreateWorkspace}
                   disabled={!workspaceName.trim() || isCreating}
                   className="h-auto px-5 rounded-[980px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium border-0 transition-all active:scale-[0.98]"
@@ -224,7 +226,7 @@ export default function HomePage() {
         {/* Join Workspace Context */}
         <div className="w-full flex flex-col items-center mt-4">
           {!showJoinForm ? (
-            <button 
+            <button
               onClick={() => { setShowJoinForm(true); setShowCreateForm(false); }}
               className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium border-b border-transparent hover:border-[var(--text-secondary)] pb-0.5"
             >
@@ -240,7 +242,7 @@ export default function HomePage() {
                 onKeyDown={e => e.key === "Enter" && handleJoinWorkspace()}
                 className="flex-1 bg-transparent border-0 ring-0 focus:ring-0 text-sm px-4 uppercase font-mono tracking-wider outline-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
-              <Button 
+              <Button
                 onClick={handleJoinWorkspace}
                 disabled={!inviteCode.trim() || isJoining}
                 className="h-10 px-6 rounded-[980px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-0 transition-all text-sm font-medium focus:ring-0 active:scale-[0.98]"

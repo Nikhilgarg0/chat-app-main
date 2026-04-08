@@ -1,13 +1,16 @@
 import connectDB from "@/lib/mongodb";
 import Message from "@/models/Message";
 import { NextResponse } from "next/server";
-import { pusherServer } from "@/lib/pusher";
+import { pusherServer } from "@/lib/pusher-server";
 import { verifyToken } from "@/lib/firebaseAdmin";
 
 
 
 export async function GET(req) {
   try {
+    const uid = await verifyToken(req);
+    if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
     await connectDB();
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get("channelId");
@@ -28,7 +31,7 @@ export async function GET(req) {
     return NextResponse.json({ success: true, messages, hasMore: messages.length === 50 });
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }
@@ -36,6 +39,9 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const uid = await verifyToken(req);
+    if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
     await connectDB();
     const body = await req.json();
     const { channelId, author, content, time, msgId, replyTo } = body;
@@ -68,7 +74,7 @@ export async function POST(req) {
     return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

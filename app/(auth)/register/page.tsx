@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth, signInWithGoogle } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { getErrorMessage } from "@/lib/utils";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function RegisterPage() {
 
       router.push("/home");
     } catch (err: any) {
-      setError(err.message);
+      setError(getErrorMessage(err));
     }
   };
 
@@ -62,7 +63,7 @@ export default function RegisterPage() {
       
       router.push("/home");
     } catch (err: any) {
-      setError(err.message);
+      setError(getErrorMessage(err));
     }
   };
 

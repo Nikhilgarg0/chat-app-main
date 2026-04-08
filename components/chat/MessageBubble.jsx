@@ -17,6 +17,7 @@ export default function MessageBubble({
   onReact,
   onDelete,
   onReply,
+  onForward,
   username,
   onShowToast,
   onRetry,
@@ -132,6 +133,14 @@ export default function MessageBubble({
 
   const handleDelete = () => { setMenuOpen(false); onDelete?.(message._id); };
   const handleReplyClick = () => { setMenuOpen(false); onReply?.(message); };
+  const handleForward = () => { 
+    setMenuOpen(false); 
+    if (onForward) {
+      onForward(message);
+    } else {
+      onShowToast?.("Forward coming soon!");
+    }
+  };
 
   const reactionEntries = message.reactions ? Object.entries(message.reactions) : [];
 
@@ -318,8 +327,10 @@ export default function MessageBubble({
                   onReact={handleReact}
                   onReply={handleReplyClick}
                   onCopy={handleCopy}
+                  onForward={handleForward}
                   onDelete={handleDelete}
                   isOwn={isOwn}
+                  time={message.time}
                 />
               )}
 
@@ -453,7 +464,7 @@ function ActionItem({ icon, label, onClick, danger = false }) {
 }
 
 // ── Context menu (stable module-level component) ──────────────────────────────
-function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, onReact, onReply, onCopy, onDelete, isOwn }) {
+function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, onReact, onReply, onCopy, onForward, onDelete, isOwn, time }) {
   const [leftOffset, setLeftOffset] = useState(0);
 
   useEffect(() => {
@@ -492,8 +503,14 @@ function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, 
       <div style={{ padding: "4px 0" }}>
         <ActionItem icon="↩" label="Reply" onClick={onReply} />
         <ActionItem icon="📋" label="Copy" onClick={onCopy} />
+        <ActionItem icon="↪" label="Forward" onClick={onForward} />
         {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={onDelete} danger />}
       </div>
+      {time && (
+        <div style={{ borderTop: "1px solid var(--border)", padding: "10px 16px", fontSize: 11, color: "var(--text-tertiary)", textAlign: "center", fontFamily: "monospace", letterSpacing: "0.02em" }}>
+          Sent at {time}
+        </div>
+      )}
     </div>
   );
 }

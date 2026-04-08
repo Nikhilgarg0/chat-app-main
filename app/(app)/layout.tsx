@@ -33,7 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4 relative overflow-hidden">
+      <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-slate-900 px-4 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
         <div className="flex flex-col items-center gap-4 z-10">
@@ -44,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30">
+    <div className="min-h-[100dvh] bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30">
       {children}
     </div>
   );

@@ -22,14 +22,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)]">
         <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
+    <main className="flex min-h-[100dvh] w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
       {/* Left Half */}
       <div className="hidden lg:flex flex-1 flex-col justify-between p-12 lg:p-24 bg-[var(--bg-elevated)] border-r border-[var(--border)] relative overflow-hidden">
         
