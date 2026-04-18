@@ -73,12 +73,11 @@ export default function ChannelPage() {
 
     const fetchChannelName = async () => {
       try {
-        const res = await authFetch(`/api/workspaces/${workspaceId}`);
+        const res = await authFetch(`/api/channels/${channelId}`);
         if (res.ok) {
           const data = await res.json();
-          const channel = data.workspace?.channels?.find((c: any) => c._id === channelId);
-          if (channel) {
-            setChannelName(channel.name);
+          if (data.channel) {
+            setChannelName(data.channel.name);
           }
         }
       } catch (e) { }
@@ -455,9 +454,34 @@ export default function ChannelPage() {
             </div>
           </div>
         )}
+        
+        {messages.length === 0 && !connected && (
+          <div className="flex-1 flex flex-col items-center justify-center opacity-40 space-y-4 pt-10">
+            <svg className="w-8 h-8 animate-spin text-[var(--accent)]" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            <div className="text-center font-body">
+              <p className="text-[13px] text-[var(--text-secondary)] mt-1">Connecting to secure hub...</p>
+            </div>
+          </div>
+        )}
 
         {messages.map((msg: any, i: number) => {
-          const isGrouped = i > 0 && (messages[i - 1] as any).author === msg.author;
+          let isGrouped = false;
+          if (i > 0) {
+            const prevMsg = messages[i - 1] as any;
+            if (prevMsg.author === msg.author) {
+              const t1 = prevMsg.timestamp || prevMsg.createdAt;
+              const t2 = msg.timestamp || msg.createdAt;
+              if (t1 && t2) {
+                const diff = new Date(t2).getTime() - new Date(t1).getTime();
+                if (diff < 5 * 60 * 1000) isGrouped = true;
+              } else if (!t1 && !t2) {
+                isGrouped = true; // optimistc before timestamps
+              }
+            }
+          }
 
           return (
             <MessageBubble
@@ -477,50 +501,52 @@ export default function ChannelPage() {
           );
         })}
 
-        {isThinking && (
-          <div className="flex items-start gap-3 px-4 py-2 mt-4 mb-2 animate-slide-up">
-            <div className="w-8 h-8 rounded-lg shrink-0 bg-transparent flex items-center justify-center border border-[var(--ai-accent)] border-opacity-30 shadow-[0_0_12px_var(--ai-bg)_inset] opacity-80 backdrop-blur-sm">
-              <span className="text-[10px] text-[var(--ai-accent)] font-bold">AI</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[12px] font-semibold tracking-wide text-[var(--ai-accent)] flex items-center gap-2">
-                Nexus AI
-              </span>
-              <div className="flex gap-1 py-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        <div className="flex flex-col gap-2">
+          {isThinking && (
+            <div className="flex items-start gap-3 px-4 py-2 mt-4 animate-slide-up">
+              <div className="w-8 h-8 rounded-lg shrink-0 bg-transparent flex items-center justify-center border border-[var(--ai-accent)] border-opacity-30 shadow-[0_0_12px_var(--ai-bg)_inset] opacity-80 backdrop-blur-sm">
+                <span className="text-[10px] text-[var(--ai-accent)] font-bold">AI</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[12px] font-semibold tracking-wide text-[var(--ai-accent)] flex items-center gap-2">
+                  Nexus AI
+                </span>
+                <div className="flex gap-1 py-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--ai-accent)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Typing Indicator */}
-        {(() => {
-          const activeTypers = typingUsers.filter((u: string) => u !== username);
-          if (activeTypers.length === 0) return null;
-          const verb = activeTypers.length === 1 ? 'is' : 'are';
-          let names: string;
-          if (activeTypers.length === 1) {
-            names = activeTypers[0];
-          } else if (activeTypers.length === 2) {
-            names = `${activeTypers[0]} and ${activeTypers[1]}`;
-          } else {
-            names = `${activeTypers[0]}, ${activeTypers[1]} and ${activeTypers.length - 2} other${activeTypers.length - 2 > 1 ? 's' : ''}`;
-          }
-          return (
-            <div className="flex items-center gap-1.5 animate-slide-up px-3 py-1.5 mt-2 mb-2 ml-4 md:ml-6 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm self-start">
-              <span className="text-[12px] text-[var(--text-tertiary)] font-medium italic">
-                {names} {verb} typing
-              </span>
-              <div className="flex gap-1 ml-1">
-                <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          {/* Typing Indicator */}
+          {!isThinking && (() => {
+            const activeTypers = typingUsers.filter((u: string) => u !== username);
+            if (activeTypers.length === 0) return null;
+            const verb = activeTypers.length === 1 ? 'is' : 'are';
+            let names: string;
+            if (activeTypers.length === 1) {
+              names = activeTypers[0];
+            } else if (activeTypers.length === 2) {
+              names = `${activeTypers[0]} and ${activeTypers[1]}`;
+            } else {
+              names = `${activeTypers[0]}, ${activeTypers[1]} and ${activeTypers.length - 2} other${activeTypers.length - 2 > 1 ? 's' : ''}`;
+            }
+            return (
+              <div className="flex items-center gap-1.5 animate-slide-up px-3 py-1.5 mt-2 ml-4 md:ml-6 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm self-start">
+                <span className="text-[12px] text-[var(--text-tertiary)] font-medium italic">
+                  {names} {verb} typing
+                </span>
+                <div className="flex gap-1 ml-1">
+                  <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-1.5 h-1.5 bg-[var(--text-tertiary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
 
         <div ref={bottomRef} className="h-4" />
       </div>
@@ -595,8 +621,13 @@ export default function ChannelPage() {
             )}
 
             {/* Input Bar */}
-            <div className={`w-full flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] p-[4px] md:pr-[6px] transition-all relative z-10 min-h-[48px] ${replyTo ? "rounded-b-[20px] rounded-t-none" : "rounded-[20px]"}`}>
-              <div className="pl-3 md:pl-4 py-1 flex-1 flex items-center gap-2 h-full">
+            <div className={`w-full flex flex-col gap-1 bg-[var(--bg-elevated)] border border-[var(--border)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-glow)] p-[4px] md:pr-[6px] transition-all relative z-10 min-h-[48px] ${replyTo ? "rounded-b-[20px] rounded-t-none" : "rounded-[20px]"}`}>
+              {!connected && (
+                <div className="w-full text-center py-1 mt-1">
+                  <span className="text-xs font-medium text-red-400 bg-red-400/10 px-3 py-1 rounded-full">Reconnecting to server... Messages are disabled</span>
+                </div>
+              )}
+              <div className="w-full flex-1 flex items-center gap-1 h-full pl-3 md:pl-4 py-1">
                 {activeCommand && (
                   <span style={{
                     background: 'var(--ai-bg)',
@@ -622,22 +653,22 @@ export default function ChannelPage() {
                   autoFocus
                   disabled={!connected}
                 />
+                
+                <button
+                  onClick={handleSend}
+                  disabled={!messageInput.trim() || !connected || !username || isThinking || isSending}
+                  className="w-[44px] h-[44px] md:w-8 md:h-8 rounded-[16px] md:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm ml-auto"
+                >
+                  {(isThinking || isSending) ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 md:w-4 md:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                  )}
+                </button>
               </div>
-
-              <button
-                onClick={handleSend}
-                disabled={!messageInput.trim() || !connected || !username || isThinking || isSending}
-                className="w-[44px] h-[44px] md:w-8 md:h-8 rounded-[16px] md:rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white flex items-center justify-center shrink-0 transition-all active:scale-[0.92] disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-[var(--accent)] disabled:cursor-not-allowed group/btn shadow-sm"
-              >
-                {(isThinking || isSending) ? (
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5 md:w-4 md:h-4 ml-[1px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                )}
-              </button>
             </div>
 
           </div>

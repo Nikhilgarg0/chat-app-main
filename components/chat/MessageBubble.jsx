@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import UserAvatar from "@/components/ui/UserAvatar";
 import Link from "next/link";
+import { Reply, Copy, Forward, Trash2, ArrowLeft } from "lucide-react";
 import { formatMessageTime } from "@/lib/utils";
 
 const PRIMARY_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉"];
@@ -213,7 +214,6 @@ export default function MessageBubble({
             padding: "2px 16px",
             borderLeft: message.highlight ? "3px solid #EAB308" : "3px solid transparent",
             borderRadius: 4,
-            overflow: "hidden",
             background: rowHovered ? "var(--bg-elevated)" : "transparent",
             transition: swipeSpring
               ? "transform 0.2s ease, background 0.1s"
@@ -378,21 +378,33 @@ export default function MessageBubble({
               )}
             </div>
 
-            {/* ── Send failure indicator ── */}
-            {message.status === "failed" && (
+            {/* ── Status indicator (sending or failed) ── */}
+            {(message.status === "failed" || message.status === "sending") && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 11, color: "#ff3b30" }}>⚠ Failed to send</span>
-                {onRetry && (
-                  <button
-                    onClick={() => onRetry(message)}
-                    style={{
-                      fontSize: 11, color: "var(--accent)",
-                      background: "transparent", border: "none",
-                      cursor: "pointer", padding: 0, textDecoration: "underline",
-                    }}
-                  >
-                    Retry
-                  </button>
+                {message.status === "failed" ? (
+                  <>
+                    <span style={{ fontSize: 11, color: "#ff3b30" }}>⚠ Failed to send</span>
+                    {onRetry && (
+                      <button
+                        onClick={() => onRetry(message)}
+                        style={{
+                          fontSize: 11, color: "var(--accent)",
+                          background: "transparent", border: "none",
+                          cursor: "pointer", padding: 0, textDecoration: "underline",
+                        }}
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ fontSize: 11, color: "var(--text-tertiary)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Sending...
+                  </span>
                 )}
               </div>
             )}
@@ -480,15 +492,21 @@ function ActionItem({ icon, label, onClick, danger = false }) {
 
 // ── Context menu (stable module-level component) ──────────────────────────────
 function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, onReact, onReply, onCopy, onForward, onDelete, isOwn, time }) {
-  const [leftOffset, setLeftOffset] = useState(0);
+  const [menuStyle, setMenuStyle] = useState({ opacity: 0, left: 0 });
 
   useEffect(() => {
     if (!menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
-    const overflow = rect.right - window.innerWidth + 8; // +8px breathing room
-    if (overflow > 0) {
-      setLeftOffset(-Math.max(0, overflow));
+    let left = 0;
+    const overflowRight = rect.right - window.innerWidth + 8;
+    if (overflowRight > 0) {
+      left = -Math.max(0, overflowRight);
     }
+    const overflowLeft = rect.left + left;
+    if (overflowLeft < 8) {
+      left += (8 - overflowLeft);
+    }
+    setMenuStyle({ opacity: 1, left });
   }, []);
 
   return (
@@ -497,7 +515,8 @@ function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, 
       style={{
         position: "absolute",
         [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
-        left: leftOffset,
+        left: menuStyle.left,
+        opacity: menuStyle.opacity,
         zIndex: 200,
         background: "var(--bg-surface)",
         border: "1px solid var(--border)",
@@ -506,7 +525,7 @@ function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, 
         backdropFilter: "blur(20px)",
         overflow: "hidden",
         minWidth: 200,
-        animation: "ctxFadeIn 0.14s ease",
+        transition: "opacity 0.1s ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
@@ -516,10 +535,10 @@ function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, 
         <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
       </div>
       <div style={{ padding: "4px 0" }}>
-        <ActionItem icon="↩" label="Reply" onClick={onReply} />
-        <ActionItem icon="📋" label="Copy" onClick={onCopy} />
-        <ActionItem icon="↪" label="Forward" onClick={onForward} />
-        {isOwn && <ActionItem icon="🗑️" label="Delete" onClick={onDelete} danger />}
+        <ActionItem icon={<Reply className="w-4 h-4" />} label="Reply" onClick={onReply} />
+        <ActionItem icon={<Copy className="w-4 h-4" />} label="Copy" onClick={onCopy} />
+        <ActionItem icon={<Forward className="w-4 h-4" />} label="Forward" onClick={onForward} />
+        {isOwn && <ActionItem icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={onDelete} danger />}
       </div>
       {time && (
         <div style={{ borderTop: "1px solid var(--border)", padding: "10px 16px", fontSize: 11, color: "var(--text-tertiary)", textAlign: "center", fontFamily: "monospace", letterSpacing: "0.02em" }}>

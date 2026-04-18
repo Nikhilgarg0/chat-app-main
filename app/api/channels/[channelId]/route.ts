@@ -67,6 +67,35 @@ export async function DELETE(req: Request, context: { params: Promise<{ channelI
   }
 }
 
+export async function GET(req: Request, context: { params: Promise<{ channelId: string }> }) {
+  try {
+    const uid = await verifyToken(req);
+    if (!uid) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const { channelId } = params;
+
+    if (!channelId) {
+      return NextResponse.json({ success: false, error: "Missing channelId" }, { status: 400 });
+    }
+
+    await connectDB();
+    const channel = await Channel.findById(channelId).select("name workspaceId");
+    if (!channel) {
+      return NextResponse.json({ success: false, error: "Channel not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, channel });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request, context: { params: Promise<{ channelId: string }> }) {
   try {
     const uid = await verifyToken(req);

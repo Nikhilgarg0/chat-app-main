@@ -15,7 +15,8 @@ export async function POST(req: Request) {
 
     await pusherServer.trigger(`workspace-${workspaceId}`, "presence-update", {
       username,
-      status
+      status,
+      firebaseUid: uid
     });
 
     return NextResponse.json({ success: true });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSidebar } from "@/components/SidebarContext";
+import { authFetch } from "@/lib/authFetch";
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams();
@@ -13,7 +14,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     const fetchWS = async () => {
       try {
-        const res = await fetch(`/api/workspaces/${workspaceId}`);
+        const res = await authFetch(`/api/workspaces/${workspaceId}`);
         if (res.ok) {
           const data = await res.json();
           setWorkspace(data.workspace);

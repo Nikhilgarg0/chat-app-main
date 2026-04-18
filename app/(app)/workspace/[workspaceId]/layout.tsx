@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -15,6 +15,7 @@ import Toast from "@/components/ui/Toast";
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { workspaceId, channelId } = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { isSidebarOpen, setIsSidebarOpen, toggleSidebar } = useSidebar();
 
@@ -23,7 +24,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [userProfile, setUserProfile] = useState<any>(null);
   const [newChannelName, setNewChannelName] = useState("");
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [onlineUsers, setOnlineUsers] = useState<Map<string, string>>(new Map());
   const [showChannelInput, setShowChannelInput] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -106,10 +107,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     const presenceChannel = `workspace-${workspaceId}`;
     const channel = pusherClient.subscribe(presenceChannel);
 
-    channel.bind("presence-update", ({ username, status }: { username: string, status: string }) => {
+    channel.bind("presence-update", ({ username, status, firebaseUid }: { username: string, status: string, firebaseUid: string }) => {
       setOnlineUsers((prev) => {
-        const next = new Set(prev);
-        if (status === "online") next.add(username);
+        const next = new Map(prev);
+        if (status === "online") next.set(username, firebaseUid);
         else next.delete(username);
         return next;
       });
@@ -301,6 +302,17 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
             </div>
 
             <div className="px-3 space-y-0.5 relative">
+              <Link
+                href={`/workspace/${workspace._id}`}
+                onClick={() => setIsSidebarOpen(false)}
+                className={`flex items-center px-3 py-1.5 min-h-[48px] md:min-h-[32px] text-[14px] rounded-lg transition-colors truncate relative group ${pathname === `/workspace/${workspace._id}`
+                  ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium"
+                  : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                  }`}
+              >
+                <svg className={`w-4 h-4 mr-2.5 ${pathname === `/workspace/${workspace._id}` ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                Overview
+              </Link>
               {workspace.channels?.map((ch: any) => {
                 const isActive = ch._id === channelId;
                 return (
@@ -319,8 +331,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 );
               })}
               
-              <Link href={`/workspace/${workspace._id}/browse`} onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-2 px-3 py-2 mt-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition group">
-                <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
+              <Link href={`/workspace/${workspace._id}/browse`} onClick={() => setIsSidebarOpen(false)} className={`flex items-center gap-2 px-3 py-2 mt-2 text-xs rounded-lg transition group ${pathname === `/workspace/${workspace._id}/browse` ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+                <svg className={`w-3.5 h-3.5 ${pathname === `/workspace/${workspace._id}/browse` ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
                 <span className="font-medium tracking-wide">Browse channels</span>
               </Link>
 
@@ -371,8 +383,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   <span className="text-[11px] font-mono text-[var(--success)]">{onlineUsers.size}</span>
                 </div>
                 <div className="px-3 space-y-0.5">
-                  {Array.from(onlineUsers).map((uname) => (
-                    <Link href={`/user/${encodeURIComponent(uname)}`} key={uname} onClick={() => setIsSidebarOpen(false)} className="flex items-center px-3 py-1 min-h-[44px] md:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors cursor-pointer">
+                  {Array.from(onlineUsers.entries()).map(([uname, uid]) => (
+                    <Link href={`/user/${encodeURIComponent(uid)}`} key={uname} onClick={() => setIsSidebarOpen(false)} className="flex items-center px-3 py-1 min-h-[44px] md:min-h-[28px] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors cursor-pointer">
                       <div className="w-2 h-2 rounded-full bg-[var(--success)] mr-3"></div>
                       <span className="truncate">{uname}</span>
                     </Link>

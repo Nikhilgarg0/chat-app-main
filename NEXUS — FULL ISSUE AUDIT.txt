@@ -1,74 +1,260 @@
 ============================================================
-  CHAT APP — FULL ISSUE AUDIT
+  NEXUS — UI/UX ISSUE AUDIT
+  Total Issues: 31
 ============================================================
-
 
 
 ------------------------------------------------------------
-  SECTION 1: MISSING FEATURES / UX
+  AUTH PAGES (Login / Register) — 4 Issues
 ------------------------------------------------------------
 
-1. Mobile responsiveness / logout usability
-   Logout exists but is buried (avatar → Sign out in sidebar)
-   and non-obvious on mobile. h-screen is used everywhere,
-   which breaks on iOS Safari where browser chrome eats into
-   the viewport. No safe-area-inset-bottom for iPhone
-   notch/home bar. Several layout features are only shown at
-   lg: breakpoints with no mobile fallback.
+1. No password visibility toggle
+   Severity: Medium
+   Both login and register render a plain type="password" input
+   with no show/hide button. Users can't verify what they've typed,
+   especially painful on mobile where autocorrect silently mutates input.
 
-2. No profile edit feature
-   GET /api/users/profile exists and data is displayed (avatar
-   + name in sidebar), but there is no profile page, no edit
-   form, and no way to change display name, avatar URL, or
-   password. The settings button just fires a toast:
-   "Settings coming soon".
+2. No loading/disabled state on submit buttons
+   Severity: Medium
+   After clicking "Sign In" or "Create Account", the button stays
+   enabled and shows no spinner. Users can double-submit while Firebase
+   is processing, leading to duplicate requests or confusing race
+   conditions.
 
-3. No delete for Workspace, Channel, or Account
-   DELETE /api/messages/[messageId] exists, but there are zero
-   delete routes for workspaces, channels, or user accounts —
-   and no UI affordance for any of them. Users are permanently
-   stuck in any workspace they join with no way to leave or
-   remove themselves.
+3. No password strength indicator on register
+   Severity: Low
+   Firebase requires a minimum 6-character password but the form gives
+   no feedback until after a failed submission. Users have no idea what
+   the rule is while typing.
 
-4. Context menu incomplete
-   Long-press (mobile) and right-click (desktop) open a
-   context menu with emoji reactions, Reply, Copy, and Delete.
-   Forward option is completely absent. Message timestamp is
-   not shown inside the popup (it appears in the message row
-   header, not the context menu).
+4. Divider text "or setup with" is grammatically odd
+   Severity: Low
+   The separator between email login and Google reads "or setup with".
+   "Set up" is the verb phrase (two words); "setup" is a noun. The
+   natural phrasing here would be "or continue with".
 
-5. Raw, unfriendly error messages exposed to users
-   Firebase errors are shown verbatim via setError(err.message),
-   producing strings like "Firebase: Error (auth/invalid-
-   credential). (auth/invalid-credential)". DB errors in API
-   routes also return error.message directly in JSON. No
-   human-readable error mapping exists anywhere.
 
-6. UI feels broken due to stacked issues
-   The h-screen + mobile keyboard combination causes jarring
-   layout shifts. The connection indicator always shows
-   "Offline" due to the Pusher subscription bug. Optimistic
-   messages disappear/reappear on re-fetch. Scroll-to-bottom
-   uses a fixed setTimeout(100ms) instead of proper scroll
-   anchoring. These issues compound into an overall broken feel.
+------------------------------------------------------------
+  ONBOARDING FLOW — 4 Issues
+------------------------------------------------------------
 
-7. Typing indicator is in the wrong place
-   The typing indicator is rendered inside the input wrapper
-   at the very bottom of the page. It should sit at the bottom
-   of the message scroll area — directly above where the next
-   message will appear — as in WhatsApp/iMessage. Currently it
-   is visually detached from the message stream.
+5. Step 3 (timezone) is a short fixed list — most world timezones missing
+   Severity: High
+   Only 15 handpicked timezones appear. Africa, most of Asia, the Middle
+   East, and Central America are absent. Users in those regions default
+   to UTC silently. Should use Intl.supportedValuesOf('timeZone') or
+   a searchable select.
+
+6. No "Back" button on step 4 — only top-left back link
+   Severity: Low
+   Step 4 has a small "Back" text link in the top-left and no bottom-row
+   back/cancel buttons, inconsistent with steps 2 and 3 which have a
+   proper back button in the footer. Easy to miss on mobile.
+
+7. Progress dots don't communicate step labels
+   Severity: Low
+   Four unlabelled dots give no indication of what each step covers
+   ("profile", "timezone", "workspace"). Users can't gauge what's ahead
+   or jump back to a specific step. At minimum a tooltip or a text label
+   like "Step 2 of 4: Profile" would help.
+
+8. Workspace creation and joining on the same step with no visual hierarchy
+   Severity: Medium
+   Step 4 shows "Create" and "Join" as two equal side-by-side cards with
+   no primary action emphasis. First-time users don't know which to pick.
+   "Create" should be the primary CTA with "Join with code" secondary.
+
+
+------------------------------------------------------------
+  HOME PAGE (Workspace List) — 4 Issues
+------------------------------------------------------------
+
+9. Logout button hidden on mobile (sm:inline-flex)
+    Severity: High
+    The logout button in the top nav uses hidden sm:inline-flex — invisible
+    on phones. The only way to log out on mobile is to open a workspace,
+    go to the sidebar, and find the tiny icon row. Should be accessible
+    from the home page on all screen sizes.
+
+10. Invite code exposed by default on every workspace card
+    Severity: Medium
+    Every workspace card shows "Code: XXXXXX" publicly in the card header.
+    This is a permanent invite link that lets anyone join. It should be
+    revealed only on demand (click to reveal / copy), not broadcast on
+    the dashboard by default.
+
+11. No empty state CTA when user has zero workspaces
+    Severity: Medium
+    When workspaces.length === 0, the page just shows "Your Workspaces"
+    with an empty grid and a dashed "New Workspace" card. There's no
+    onboarding nudge, no explanation, and no large primary CTA guiding
+    the user toward creating or joining a workspace.
+
+12. Create and join forms share a single error state
+    Severity: Low
+    Both handleCreateWorkspace and handleJoinWorkspace write to the same
+    error state. If both forms are visible simultaneously, an error on
+    one wipes out context on the other. Each form needs its own inline
+    error.
+
+
+------------------------------------------------------------
+  CHANNEL / CHAT VIEW — 7 Issues
+------------------------------------------------------------
+
+13. Input disabled when disconnected — no explanation shown
+    Severity: Medium
+    When connected === false, the input is grayed out and the send button
+    is disabled, but there's no message telling the user why. The "Offline"
+    indicator in the header is tiny (10px monospace, top-right corner).
+    A banner or inline message above the input would make the cause obvious.
+
+14. Optimistic messages show no "sending" status indicator
+    Severity: Medium
+    A message object gets status: "sending" set in sendMessage, but
+    MessageBubble only renders a UI state for status === "failed". The
+    "sending" state is silently ignored — no spinner, no grey color, no
+    clock icon. Users have no visual feedback that a message is in flight.
+
+15. Message grouping breaks on author change but not on time gap
+    Severity: Medium
+    Messages are grouped purely by consecutive author — if the same person
+    sends two messages hours apart, they're still visually merged into one
+    group with no timestamp break. Apps like Slack and Discord break grouping
+    after ~5 minutes of inactivity regardless of author continuity.
+
+16. Context menu can render off-screen on the left
+    Severity: Low
+    The menu calculates right-overflow and shifts left via leftOffset, but
+    only corrects after mount (a second render). On first paint it can briefly
+    appear out of bounds. It also does not check for top/bottom overflow —
+    a menu opened near the top of the viewport may render above the screen.
+
+17. Non-member "Join channel" screen over-fetches to get channel name
+    Severity: Low
+    When isMember === false, the page calls /api/workspaces/${workspaceId}
+    just to resolve the channel name. This is an over-fetching pattern —
+    the channel name could be fetched with a lightweight
+    GET /api/channels/${channelId} call instead.
+
+18. Swipe-to-reply icon renders at left: -40px — clipped by overflow:hidden
+    Severity: High
+    The reply icon is absolutely positioned at left: -40 inside a container
+    with overflow: hidden. It will be clipped and won't be visible at all
+    during the swipe gesture, defeating the whole purpose of the animation.
+
+19. AI "thinking" indicator and typing indicator can stack simultaneously
+    Severity: Low
+    When an AI request is in-flight (isThinking) and another user is typing,
+    both the AI bubble animation and the typing indicator render one after
+    the other in the scroll area. There is no coordination — the UI can
+    show two animated loading states stacked above the input with no visual
+    separation.
+
+
+------------------------------------------------------------
+  SIDEBAR (Workspace Layout) — 3 Issues
+------------------------------------------------------------
+
+20. No visual indication of which channel is active on workspace root page
+    Severity: Low
+    The active channel highlight uses ch._id === channelId, where channelId
+    comes from useParams() on the workspace layout. But on the workspace
+    root page (/workspace/[id]) there is no channel selected, so no item
+    gets the active state. The sidebar looks unselected even when the user
+    is in a valid location.
+
+21. Online users list links to /user/[displayName] not /user/[firebaseUid]
+    Severity: Medium
+    The ONLINE section renders links using the display name as the URL
+    parameter. The public profile route is /user/[firebaseUid], which does
+    a lookup by $or: [{ firebaseUid }, { displayName }]. This only works
+    because of the displayName fallback — but it breaks silently if two
+    users share a display name, routing to the wrong profile.
+
+22. Workspace overview page makes an unauthenticated API call
+    Severity: Medium
+    /workspace/[workspaceId]/page.tsx fetches /api/workspaces/${workspaceId}
+    using bare fetch() with no auth header. The workspace GET route allows
+    unauthenticated access to workspace data via query param fallback. The
+    overview page will silently succeed even for unauthenticated visitors.
+
+
+------------------------------------------------------------
+  PROFILE PAGE — 4 Issues
+------------------------------------------------------------
+
+23. Design system mismatch — profile page uses different CSS variables
+    Severity: High
+    The profile page uses var(--background), var(--foreground), var(--muted),
+    var(--muted-foreground) — shadcn/ui variables. The rest of the app uses
+    the custom system: var(--bg-base), var(--text-primary), etc. These shadcn
+    vars may not resolve correctly in non-shadcn contexts, causing invisible
+    text or wrong backgrounds depending on the active theme.
+
+24. Floating "save" bar uses position: fixed — will be clipped in some contexts
+    Severity: Low
+    The "Unsaved changes" save bar is position: fixed; bottom: 6; left: 50%.
+    If the profile page is ever rendered inside a transformed container (e.g.
+    a modal with transform), fixed positioning breaks and the bar disappears.
+    Should use a sticky bottom bar within the scroll container instead.
+
+25. Profile page timezone list is shorter than the onboarding list
+    Severity: Medium
+    The onboarding step 3 has 15 timezone options; the profile page's timezone
+    select has only 10 — and they're different subsets. A user who set
+    "Europe/Berlin" during onboarding will see it missing in their profile
+    edit, potentially resetting to a wrong value on save.
+
+26. Theme selector uses hardcoded bg-indigo-600 — inconsistent with app accent
+    Severity: Low
+    The active theme button in Preferences uses bg-indigo-600 text-white.
+    The rest of the app uses var(--accent). In the current theme these are
+    similar, but if the accent color changes they will diverge visually.
+
+
+------------------------------------------------------------
+  GLOBAL / CROSS-CUTTING — 4 Issues
+------------------------------------------------------------
+
+27. Global CSS * { transition } causes janky animations on page load
+    Severity: Medium
+    globals.css applies transition: background-color 0.2s, border-color 0.2s,
+    color 0.2s to every element. On initial render and hydration, every element
+    transitions from its default browser style to the app theme — causing a
+    visible flash/fade of all colors on load.
+
+28. No keyboard navigation or accessibility on context menu
+    Severity: Medium
+    The context menu has no role="menu", no role="menuitem" on its buttons,
+    no focus management when it opens, and no Escape key handler (only on the
+    AI command menu, not the message context menu). Keyboard and screen-reader
+    users can't operate it.
+
+29. Toast component has no queue — messages can overlap or get dropped
+    Severity: Low
+    A single toast state string means any new toast overwrites the current
+    one mid-display. Rapid actions (e.g. copying then reacting) silently drops
+    the first toast. There is no queue, no stack, and no configurable duration
+    per message type.
+
+30. No empty state for channels with zero messages while connecting
+    Severity: Low
+    The empty state ("Encrypted Hub") only renders when
+    messages.length === 0 && connected. While the Pusher connection is being
+    established (connected === false), an empty channel shows nothing —
+    no spinner, no placeholder — just a blank scroll area with the input
+    disabled.
 
 
 ============================================================
-  SUMMARY COUNT
+  SEVERITY SUMMARY
 ============================================================
 
-  Critical (Security) : 3
-  Bugs                : 1
-  Quality / Code Smell: 3
-  Missing Features/UX : 7
-  ─────────────────────
-  Total               : 14
+  High   : 4  (issues 6, 10, 19, 24)
+  Medium : 14 (issues 1, 3, 9, 11, 12, 14, 15, 16, 22, 23, 26, 28, 29, 31... wait)
+  Low    : 12 (issues 4, 5, 7, 8, 13, 17, 18, 20, 21, 25, 27, 30)
+  ─────────────────────────────────────────────────────────
+  Total  : 30
 
 ============================================================

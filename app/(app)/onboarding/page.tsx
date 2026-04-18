@@ -151,11 +151,21 @@ export default function OnboardingPage() {
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-base)] text-[var(--text-primary)] px-4 font-body transition-opacity duration-300">
       <div className="w-full max-w-[480px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl p-8 shadow-apple transition-transform duration-300">
         
-        {/* Progress dots */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} className={`w-2 h-2 rounded-full transition-colors ${step <= currentStep ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"}`} />
-          ))}
+        {/* Progress labels & dots */}
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+            Step {currentStep} of 4: {["Welcome", "Profile", "Timezone", "Workspace"][currentStep-1]}
+          </span>
+          <div className="flex items-center justify-center gap-2">
+            {[1, 2, 3, 4].map((step) => (
+              <button 
+                key={step} 
+                onClick={() => step < currentStep ? setCurrentStep(step) : null} 
+                className={`w-2 h-2 rounded-full transition-colors ${step <= currentStep ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"} ${step < currentStep ? "cursor-pointer hover:scale-125" : "cursor-default"}`} 
+                disabled={step > currentStep}
+              />
+            ))}
+          </div>
         </div>
 
         {currentStep === 1 && (
@@ -227,33 +237,13 @@ export default function OnboardingPage() {
 
             <div className="mb-6">
               <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full px-3 py-3 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all appearance-none cursor-pointer">
-                <optgroup label="Asia">
-                  <option value="Asia/Kolkata">Asia/Kolkata</option>
-                  <option value="Asia/Dubai">Asia/Dubai</option>
-                  <option value="Asia/Singapore">Asia/Singapore</option>
-                  <option value="Asia/Tokyo">Asia/Tokyo</option>
-                  <option value="Asia/Shanghai">Asia/Shanghai</option>
-                </optgroup>
-                <optgroup label="Europe">
-                  <option value="Europe/London">Europe/London</option>
-                  <option value="Europe/Paris">Europe/Paris</option>
-                  <option value="Europe/Berlin">Europe/Berlin</option>
-                  <option value="Europe/Moscow">Europe/Moscow</option>
-                </optgroup>
-                <optgroup label="Americas">
-                  <option value="America/New_York">America/New_York</option>
-                  <option value="America/Chicago">America/Chicago</option>
-                  <option value="America/Denver">America/Denver</option>
-                  <option value="America/Los_Angeles">America/Los_Angeles</option>
-                  <option value="America/Sao_Paulo">America/Sao_Paulo</option>
-                </optgroup>
-                <optgroup label="Pacific">
-                  <option value="Pacific/Auckland">Pacific/Auckland</option>
-                  <option value="Pacific/Sydney">Pacific/Sydney</option>
-                </optgroup>
-                <optgroup label="Other">
-                  <option value="UTC">UTC</option>
-                </optgroup>
+                {typeof Intl !== 'undefined' && Intl.supportedValuesOf ? (
+                  Intl.supportedValuesOf('timeZone').map(tz => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))
+                ) : (
+                  <option value={timezone}>{timezone}</option>
+                )}
               </select>
               {liveTime && <p className="mt-4 text-center text-sm font-medium text-[var(--accent)]">Your current time: {liveTime}</p>}
             </div>
@@ -267,31 +257,43 @@ export default function OnboardingPage() {
 
         {currentStep === 4 && (
           <div className="flex flex-col animate-slide-up h-full">
-            <div className="flex items-center mb-6">
-              <button onClick={() => setCurrentStep(3)} className="px-4 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] rounded-full font-medium transition-colors">Back</button>
-            </div>
-
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h2 className="text-2xl font-bold mb-2">Join or create a workspace</h2>
               <p className="text-[var(--text-secondary)]">Workspaces are where your team communicates.</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
-              <div className="flex-1 border border-[var(--border)] rounded-xl p-5 bg-[var(--bg-surface)]">
-                <h3 className="font-semibold mb-4">Create a workspace</h3>
-                <input type="text" placeholder="Workspace name" value={wsName} onChange={e => setWsName(e.target.value)} className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg outline-none mb-3" />
-                <button disabled={!wsName.trim() || isSubmitting} onClick={createWorkspace} className="w-full py-2 bg-[var(--accent)] text-white rounded-lg font-medium active:scale-[0.98] disabled:opacity-50">Create workspace</button>
+            <div className="flex flex-col gap-4 mb-6 text-left">
+              <div className="border-2 border-[var(--accent)] rounded-xl p-5 bg-[var(--bg-surface)] shadow-[0_0_0_1px_var(--accent-glow)] relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-[var(--accent)] text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">RECOMMENDED</div>
+                <h3 className="font-semibold mb-2">Create a new workspace</h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">Start fresh and invite your team to collaborate.</p>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Workspace name" value={wsName} onChange={e => setWsName(e.target.value)} className="flex-1 px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg outline-none max-w-[200px]" />
+                  <button disabled={!wsName.trim() || isSubmitting} onClick={createWorkspace} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg font-medium active:scale-[0.98] disabled:opacity-50">Create</button>
+                </div>
               </div>
-              <div className="flex-1 border border-[var(--border)] rounded-xl p-5 bg-[var(--bg-surface)]">
-                <h3 className="font-semibold mb-4">Join with invite code</h3>
-                <input type="text" placeholder="Invite code" value={inviteCode} onChange={e => setInviteCode(e.target.value)} className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg outline-none mb-3" />
-                <button disabled={!inviteCode.trim() || isSubmitting} onClick={joinWorkspace} className="w-full py-2 bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg font-medium active:scale-[0.98] disabled:opacity-50">Join workspace</button>
+
+              <div className="flex items-center gap-4 py-1">
+                <div className="h-px bg-[var(--border)] flex-1"></div>
+                <span className="text-xs text-[var(--text-tertiary)] font-medium uppercase tracking-wider">or join existing</span>
+                <div className="h-px bg-[var(--border)] flex-1"></div>
+              </div>
+
+              <div className="border border-[var(--border)] rounded-xl p-5 bg-[var(--bg-surface)] opacity-80 hover:opacity-100 transition-opacity">
+                <h3 className="font-medium mb-3 text-sm">Have an invite code?</h3>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Enter code" value={inviteCode} onChange={e => setInviteCode(e.target.value)} className="flex-1 px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg outline-none text-sm max-w-[200px]" />
+                  <button disabled={!inviteCode.trim() || isSubmitting} onClick={joinWorkspace} className="px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg font-medium active:scale-[0.98] disabled:opacity-50 text-sm">Join</button>
+                </div>
               </div>
             </div>
 
-            <button onClick={skipWorkspace} disabled={isSubmitting} className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] mx-auto underline transition-colors">
-              Skip for now — I'll set this up later
-            </button>
+            <div className="flex items-center justify-between gap-4 mt-auto pt-2">
+              <button onClick={() => setCurrentStep(3)} className="px-6 py-2.5 text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] rounded-full font-medium transition-colors">Back</button>
+              <button onClick={skipWorkspace} disabled={isSubmitting} className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] underline transition-colors">
+                Skip for now
+              </button>
+            </div>
           </div>
         )}
       </div>
