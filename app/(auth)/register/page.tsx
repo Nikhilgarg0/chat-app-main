@@ -79,11 +79,11 @@ export default function RegisterPage() {
   };
 
   // ── Step 2: Verify OTP & Create Account ───────────────────────
-  const handleVerifyOtp = async (e?: React.FormEvent) => {
+  const handleVerifyOtp = async (e?: React.FormEvent, otpOverride?: string) => {
     e?.preventDefault();
     setError("");
 
-    const otpCode = otpDigits.join("");
+    const otpCode = otpOverride || otpDigits.join("");
     if (otpCode.length !== 6) {
       setError("Please enter the complete 6-digit code.");
       return;
@@ -144,9 +144,11 @@ export default function RegisterPage() {
       otpRefs.current[index + 1]?.focus();
     }
 
-    // Auto-submit when all 6 digits are filled
+    // Auto-submit when all 6 digits are filled — pass the complete code directly
+    // to avoid reading stale state before React re-renders
     if (digit && index === 5 && newDigits.every((d) => d !== "")) {
-      setTimeout(() => handleVerifyOtp(), 150);
+      const completeOtp = newDigits.join("");
+      setTimeout(() => handleVerifyOtp(undefined, completeOtp), 150);
     }
   };
 
@@ -171,9 +173,9 @@ export default function RegisterPage() {
     const nextEmpty = newDigits.findIndex((d) => d === "");
     otpRefs.current[nextEmpty !== -1 ? nextEmpty : 5]?.focus();
 
-    // Auto-submit if all 6 digits pasted
+    // Auto-submit if all 6 digits pasted — pass directly to avoid stale state
     if (pastedData.length === 6) {
-      setTimeout(() => handleVerifyOtp(), 150);
+      setTimeout(() => handleVerifyOtp(undefined, pastedData), 150);
     }
   };
 

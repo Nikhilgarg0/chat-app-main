@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import { User } from "@/models/User";
 
 const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || "http://localhost:4000";
 
@@ -10,6 +12,17 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { success: false, error: "Email is required" },
         { status: 400 }
+      );
+    }
+
+    // Check if this email is already registered before wasting an OTP send
+    await connectDB();
+    const existingUser = await User.findOne({ email: email.trim().toLowerCase() });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { success: false, error: "An account with this email already exists. Please sign in instead." },
+        { status: 409 }
       );
     }
 
