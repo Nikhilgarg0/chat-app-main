@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import { Channel } from "@/models/Channel";
 import { Workspace } from "@/models/Workspace";
 import { verifyToken } from "@/lib/firebaseAdmin";
+import { pusherServer } from "@/lib/pusher-server";
 import Message from "@/models/Message";
 
 export async function DELETE(req: Request, context: { params: Promise<{ channelId: string }> }) {
@@ -60,7 +61,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ channelI
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }
@@ -104,10 +105,21 @@ export async function POST(req: Request, context: { params: Promise<{ channelId:
     channel.members.push(uid);
     await channel.save();
 
+    // Notify workspace sidebar in real-time
+    try {
+      await pusherServer.trigger(
+        `workspace-${channel.workspaceId}`,
+        "channel-joined",
+        { channel: channel.toObject(), firebaseUid: uid }
+      );
+    } catch (e) {
+      console.error("Pusher channel-joined error:", e);
+    }
+
     return NextResponse.json({ success: true, channel });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

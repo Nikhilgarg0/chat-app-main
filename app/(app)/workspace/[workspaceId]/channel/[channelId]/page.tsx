@@ -6,6 +6,7 @@ import { useSocket } from "@/hooks/useSocket";
 import MessageBubble from "@/components/chat/MessageBubble";
 import Toast from "@/components/ui/Toast";
 import { auth } from "@/lib/firebase";
+import { authFetch } from "@/lib/authFetch";
 import { useSidebar } from "@/components/SidebarContext";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -48,12 +49,12 @@ export default function ChannelPage() {
     const unsub = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
-          const memRes = await fetch(`/api/channels/${channelId}/membership?firebaseUid=${user.uid}`);
+          const memRes = await authFetch(`/api/channels/${channelId}/membership?firebaseUid=${user.uid}`);
           const memData = memRes.ok ? await memRes.json() : { isMember: false };
           setIsMember(memData.isMember);
 
           if (memData.isMember) {
-            const res = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
+            const res = await authFetch(`/api/users/profile?firebaseUid=${user.uid}`);
             if (res.ok) {
               const data = await res.json();
               setUsername(data.user?.displayName || user.email?.split("@")[0] || "User");
@@ -72,7 +73,7 @@ export default function ChannelPage() {
 
     const fetchChannelName = async () => {
       try {
-        const res = await fetch(`/api/workspaces/${workspaceId}`);
+        const res = await authFetch(`/api/workspaces/${workspaceId}`);
         if (res.ok) {
           const data = await res.json();
           const channel = data.workspace?.channels?.find((c: any) => c._id === channelId);
@@ -103,7 +104,7 @@ export default function ChannelPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setIsMember(true);
-        const profileRes = await fetch(`/api/users/profile?firebaseUid=${user.uid}`);
+        const profileRes = await authFetch(`/api/users/profile?firebaseUid=${user.uid}`);
         if (profileRes.ok) {
           const pdata = await profileRes.json();
           setUsername(pdata.user?.displayName || user.email?.split("@")[0] || "User");
@@ -121,65 +122,15 @@ export default function ChannelPage() {
     }
   };
 
-  if (isMember === null) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)] w-full">
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (isMember === false) {
-    return (
-      <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full relative">
-        {/* Header without hamburger if needed, or simple header */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
-          <div className="flex items-center flex-1">
-            {!isSidebarOpen && (
-              <button onClick={toggleSidebar} className="p-2 -ml-2 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition-colors">
-                <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-              </button>
-            )}
-          </div>
-          <div className="flex items-center justify-center gap-1 flex-1 lg:flex-none">
-            <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
-            <h2 className="text-[var(--text-primary)] font-display font-bold text-base tracking-tight">{channelName}</h2>
-          </div>
-          <div className="flex-[1]"></div>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-slide-up">
-          <div className="w-16 h-16 rounded-[20px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center shadow-sm mb-6">
-            <Lock className="w-8 h-8 text-[var(--text-secondary)]" />
-          </div>
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">#{channelName}</h2>
-          <p className="text-[var(--text-secondary)] mb-8">You haven't joined this channel yet.</p>
-          
-          <button 
-            onClick={handleJoinChannel} 
-            disabled={joining}
-            className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-full transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {joining ? "Joining..." : "Join channel"}
-          </button>
-          
-          <Link href={`/workspace/${workspaceId}/browse`} className="mt-6 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-            Go back
-          </Link>
-        </div>
-        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-      </div>
-    );
-  }
 
   const lastMessageId = (messages[messages.length - 1] as any)?._id
     ?? (messages[messages.length - 1] as any)?.msgId
     ?? null;
 
   useEffect(() => {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    });
   }, [lastMessageId]);
 
   const filteredCommands = AI_COMMANDS.filter((c) =>
@@ -255,9 +206,8 @@ export default function ChannelPage() {
 
         setIsThinking(true);
         try {
-          const res = await fetch("/api/ai", {
+          const res = await authFetch("/api/ai", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               command,
               messages: arg,
@@ -268,6 +218,10 @@ export default function ChannelPage() {
 
           if (res.ok) {
             await refetchMessages();
+          } else if (res.status === 429) {
+            setToast("Rate limit exceeded. Please wait before making another AI request.");
+          } else {
+            setToast("AI request failed. Please try again.");
           }
         } catch (err) {
           console.error(err);
@@ -347,9 +301,8 @@ export default function ChannelPage() {
     });
 
     try {
-      await fetch(`/api/messages/${messageId}/reactions`, {
+      await authFetch(`/api/messages/${messageId}/reactions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji, firebaseUid, username })
       });
     } catch (e) {
@@ -363,15 +316,13 @@ export default function ChannelPage() {
     // Optimistic removal
     (setMessages as any)((prev: any[]) => prev.filter((m: any) => m._id !== messageId));
     try {
-      await fetch(`/api/messages/${messageId}`, {
+      await authFetch(`/api/messages/${messageId}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authorName: username }),
       });
     } catch (e) {
       console.error(e);
     }
-  }, [username, setMessages]);
+  }, [setMessages]);
 
   const handleRetry = useCallback((failedMsg: any) => {
     (setMessages as any)((prev: any[]) => prev.filter((m: any) => m.msgId !== failedMsg.msgId));
@@ -394,6 +345,57 @@ export default function ChannelPage() {
     setReplyTo(msg);
     inputRef.current?.focus();
   }, []);
+
+  if (isMember === null) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)] w-full">
+        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (isMember === false) {
+    return (
+      <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full relative">
+        {/* Header without hamburger if needed, or simple header */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
+          <div className="flex items-center flex-1">
+            {!isSidebarOpen && (
+              <button onClick={toggleSidebar} className="p-2 -ml-2 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition-colors">
+                <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-1 flex-1 lg:flex-none">
+            <span className="text-[var(--text-tertiary)] font-mono text-base">#</span>
+            <h2 className="text-[var(--text-primary)] font-display font-bold text-base tracking-tight">{channelName}</h2>
+          </div>
+          <div className="flex-[1]"></div>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-slide-up">
+          <div className="w-16 h-16 rounded-[20px] bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center shadow-sm mb-6">
+            <Lock className="w-8 h-8 text-[var(--text-secondary)]" />
+          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">#{channelName}</h2>
+          <p className="text-[var(--text-secondary)] mb-8">You haven't joined this channel yet.</p>
+          
+          <button 
+            onClick={handleJoinChannel} 
+            disabled={joining}
+            className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-full transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {joining ? "Joining..." : "Join channel"}
+          </button>
+          
+          <Link href={`/workspace/${workspaceId}/browse`} className="mt-6 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+            Go back
+          </Link>
+        </div>
+        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-base)] w-full">
@@ -467,6 +469,7 @@ export default function ChannelPage() {
               onReact={onReact}
               onDelete={onDelete}
               onReply={onReply}
+              onForward={(msg: any) => showToast(`Forwarded message: ${msg.content.substring(0, 20)}...`)}
               username={username}
               onShowToast={showToast}
               onRetry={handleRetry}

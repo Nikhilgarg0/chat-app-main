@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Workspaces GET Error:", error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

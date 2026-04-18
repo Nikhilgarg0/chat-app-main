@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import UserAvatar from "@/components/ui/UserAvatar";
 import Link from "next/link";
+import { formatMessageTime } from "@/lib/utils";
 
 const PRIMARY_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉"];
 const EXTRA_EMOJIS = ["😮", "😢", "👏", "🎊", "💯"];
@@ -149,6 +150,8 @@ export default function MessageBubble({
   const displayName = isAI ? "✦ Nexus AI" : isOwn ? (username || message.author) : message.author;
   // Always work with a plain string — guards against array/object content
   const contentStr = String(message.content ?? "");
+  // Format ISO timestamp for display, fall back to legacy time field
+  const displayTime = formatMessageTime(message.timestamp || message.createdAt) || message.time || "";
 
 
 
@@ -255,7 +258,7 @@ export default function MessageBubble({
                 fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace",
                 display: "block", marginBottom: 2, lineHeight: 1,
               }}>
-                {message.time}
+                {displayTime}
               </span>
             )}
 
@@ -272,7 +275,7 @@ export default function MessageBubble({
                   )}
                 </span>
                 <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
-                  {message.time}
+                  {displayTime}
                 </span>
               </div>
             )}
@@ -342,7 +345,7 @@ export default function MessageBubble({
                   onForward={handleForward}
                   onDelete={handleDelete}
                   isOwn={isOwn}
-                  time={message.time}
+                  time={displayTime}
                 />
               )}
 

@@ -115,6 +115,29 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       });
     });
 
+    // Update sidebar in real-time when this user joins/creates a channel
+    channel.bind("channel-joined", ({ channel: newChannel, firebaseUid }: { channel: any; firebaseUid: string }) => {
+      const currentUser = auth.currentUser;
+      if (!currentUser || currentUser.uid !== firebaseUid) return;
+      setWorkspace((prev: any) => {
+        if (!prev) return prev;
+        const alreadyExists = prev.channels?.some((c: any) => c._id === newChannel._id);
+        if (alreadyExists) return prev;
+        return { ...prev, channels: [...(prev.channels || []), newChannel] };
+      });
+    });
+
+    channel.bind("channel-created", ({ channel: newChannel }: { channel: any }) => {
+      // Only add to sidebar if already listed (creator sees it immediately via handleCreateChannel)
+      // This keeps other members' sidebars in sync after a channel is created
+      setWorkspace((prev: any) => {
+        if (!prev) return prev;
+        const alreadyExists = prev.channels?.some((c: any) => c._id === newChannel._id);
+        if (alreadyExists) return prev;
+        return { ...prev, channels: [...(prev.channels || []), newChannel] };
+      });
+    });
+
     return () => {
       authFetch("/api/pusher/presence", {
         method: "POST",

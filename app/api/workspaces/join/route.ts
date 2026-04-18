@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import { Workspace } from "@/models/Workspace";
+import { verifyToken } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
-    const { inviteCode, firebaseUid } = await req.json();
+    // Auth gate
+    const uid = await verifyToken(req);
+    if (!uid) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!inviteCode || !firebaseUid) {
+    const { inviteCode } = await req.json();
+
+    if (!inviteCode) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "Missing invite code" },
         { status: 400 }
       );
     }
@@ -24,15 +31,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const isMember = workspace.members.some((m: any) => m.firebaseUid === firebaseUid);
+    const isMember = workspace.members.some((m: any) => m.firebaseUid === uid);
 
     if (!isMember) {
-      workspace.members.push({ firebaseUid, role: "member" });
+      workspace.members.push({ firebaseUid: uid, role: "member" });
       await workspace.save();
     }
 
     return NextResponse.json({ success: true, workspace });
   } catch (error: any) {
+    console.error("Workspace Join Error:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 }

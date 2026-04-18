@@ -1,12 +1,13 @@
 import connectDB from "@/lib/mongodb";
 import Message from "@/models/Message";
+import { Channel } from "@/models/Channel";
+import { Workspace } from "@/models/Workspace";
 import { NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher-server";
 import { verifyToken } from "@/lib/firebaseAdmin";
+import { formatMessageTime } from "@/lib/utils";
 
-
-
-export async function GET(req) {
+export async function GET(req: Request) {
   try {
     const uid = await verifyToken(req);
     if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -16,7 +17,27 @@ export async function GET(req) {
     const channelId = searchParams.get("channelId");
     const before = searchParams.get("before");
 
-    const query = { channelId };
+    if (!channelId) {
+      return NextResponse.json({ success: false, error: "Missing channelId" }, { status: 400 });
+    }
+
+    // S3 — Verify workspace membership before reading messages
+    const channel = await Channel.findById(channelId).lean();
+    if (!channel) {
+      return NextResponse.json({ success: false, error: "Channel not found" }, { status: 404 });
+    }
+
+    const workspace = await Workspace.findById(channel.workspaceId).lean();
+    if (!workspace) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+
+    const isMember = (workspace as any).members?.some((m: any) => m.firebaseUid === uid);
+    if (!isMember) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const query: any = { channelId };
     if (before) {
       query.createdAt = { $lt: new Date(before) };
     }
@@ -30,6 +51,7 @@ export async function GET(req) {
 
     return NextResponse.json({ success: true, messages, hasMore: messages.length === 50 });
   } catch (error) {
+    console.error("Messages GET Error:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 }
@@ -37,34 +59,45 @@ export async function GET(req) {
   }
 }
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     const uid = await verifyToken(req);
     if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     await connectDB();
     const body = await req.json();
-    const { channelId, author, content, time, msgId, replyTo } = body;
+    const { channelId, author, content, timestamp, time, msgId, replyTo } = body;
 
-    if (!channelId || !author || !content || !time) {
+    if (!channelId || !author || !content) {
       return NextResponse.json(
         { success: false, error: "All fields are required" },
         { status: 400 }
       );
     }
 
+    // Store ISO timestamp; keep `time` for backward compat display
+    const now = timestamp ? new Date(timestamp) : new Date();
+    const displayTime = time || formatMessageTime(now);
+
     const message = await Message.create({
-      channelId, author, content, time, msgId,
+      channelId, author, content,
+      timestamp: now,
+      time: displayTime,
+      msgId,
+      firebaseUid: uid,
       ...(replyTo ? { replyTo } : {}),
     });
 
     try {
       await pusherServer.trigger(`chat-${channelId}`, "new-message", {
+        _id: String(message._id),
         channelId,
         author,
         content,
-        time,
+        timestamp: now.toISOString(),
+        time: displayTime,
         msgId,
+        createdAt: message.createdAt?.toISOString(),
         ...(replyTo ? { replyTo } : {}),
       });
     } catch (pusherError) {
@@ -73,6 +106,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (error) {
+    console.error("Messages POST Error:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 }

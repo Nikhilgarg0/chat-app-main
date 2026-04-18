@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import { Channel } from "@/models/Channel";
 import { Workspace } from "@/models/Workspace";
 import { verifyToken } from "@/lib/firebaseAdmin";
+import { pusherServer } from "@/lib/pusher-server";
 
 export async function POST(req: Request) {
   try {
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
 
-    // S6 — verify the requester is actually a member of this workspace
+    // Verify the requester is actually a member of this workspace
     const isMember = workspace.members.some((m: any) => m.firebaseUid === uid);
     if (!isMember) {
       return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
@@ -40,10 +41,21 @@ export async function POST(req: Request) {
     workspace.channels.push(channel._id);
     await workspace.save();
 
+    // Notify all workspace members' sidebars in real-time
+    try {
+      await pusherServer.trigger(
+        `workspace-${workspaceId}`,
+        "channel-created",
+        { channel: channel.toObject() }
+      );
+    } catch (e) {
+      console.error("Pusher channel-created error:", e);
+    }
+
     return NextResponse.json({ success: true, channel });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

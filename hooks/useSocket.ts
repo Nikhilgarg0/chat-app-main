@@ -1,17 +1,44 @@
 "use client";
 import { authFetch } from "@/lib/authFetch";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { pusherClient } from "@/lib/pusher-client";
 import { showNotification, playNotificationSound } from "@/lib/notifications";
 
-export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
-  const [messages, setMessages] = useState([]);
-  const [typingUsers, setTypingUsers] = useState([]);
+interface MessageData {
+  _id?: string;
+  channelId: string;
+  author: string;
+  content: string;
+  time?: string;
+  timestamp?: string;
+  createdAt?: string;
+  msgId?: string;
+  type?: string;
+  reactions?: Record<string, string[]>;
+  replyTo?: {
+    author: string;
+    content: string;
+    msgId?: string;
+  };
+  status?: string;
+  highlight?: boolean;
+  avatarUrl?: string;
+}
+
+interface NotificationPrefs {
+  mentions?: boolean;
+  allMessages?: boolean;
+  sounds?: boolean;
+}
+
+export function useSocket(channelId: string, currentUsername: string, notificationPrefs: NotificationPrefs = {}) {
+  const [messages, setMessages] = useState<MessageData[]>([]);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const channelRef = useRef(null);
+  const channelRef = useRef<any>(null);
 
-  const refetchMessages = async () => {
+  const refetchMessages = useCallback(async () => {
     try {
       const res = await authFetch(`/api/messages?channelId=${channelId}`);
       const data = await res.json();
@@ -22,9 +49,9 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
     } catch (err) {
       console.error("Failed to fetch message history:", err);
     }
-  };
+  }, [channelId]);
 
-  const loadMoreMessages = async () => {
+  const loadMoreMessages = useCallback(async () => {
     if (!messages.length) return;
     const oldest = messages[0];
     const cursor = oldest.createdAt;
@@ -39,7 +66,7 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
     } catch (err) {
       console.error("Failed to load more messages:", err);
     }
-  };
+  }, [channelId, messages]);
 
   useEffect(() => {
     if (!channelId) return;
@@ -54,17 +81,15 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
       setConnected(true);
     });
 
-    channel.bind("new-message", (data) => {
+    channel.bind("new-message", (data: MessageData) => {
       setMessages((prev) => {
+        // If we already have this message by msgId, update its status/id
         if (data.msgId && prev.some((m) => m.msgId === data.msgId)) {
           return prev.map((m) =>
             m.msgId === data.msgId
-              ? { ...m, _id: data._id, status: "sent" }
+              ? { ...m, _id: data._id, status: "sent", timestamp: data.timestamp, createdAt: data.createdAt }
               : m
           );
-        }
-        if (prev.some((m) => m.content === data.content && m.time === data.time && m.author === data.author)) {
-          return prev;
         }
 
         // Handle notifications
@@ -87,7 +112,7 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
           }
 
           if (shouldHighlight) {
-            data.highlight = true; // Set a flag so UI knows to highlight it
+            data.highlight = true;
           }
         }
 
@@ -95,7 +120,7 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
       });
     });
 
-    channel.bind("user-typing", ({ username, isTyping }) => {
+    channel.bind("user-typing", ({ username, isTyping }: { username: string; isTyping: boolean }) => {
       setTypingUsers((prev) => {
         if (isTyping) {
           if (!prev.includes(username)) return [...prev, username];
@@ -106,7 +131,7 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
       });
     });
 
-    channel.bind("reaction-update", (data) => {
+    channel.bind("reaction-update", (data: { messageId: string; reactions: Record<string, string[]> }) => {
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === data.messageId
@@ -116,33 +141,35 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
       );
     });
 
-    channel.bind("message-deleted", (data) => {
+    channel.bind("message-deleted", (data: { messageId: string }) => {
       setMessages((prev) => prev.filter((msg) => msg._id !== data.messageId));
     });
 
-    const handleStateChange = (states) => {
+    const handleStateChange = (states: { current: string }) => {
       setConnected(states.current === "connected");
     };
     pusherClient.connection.bind("state_change", handleStateChange);
+    
+    // Also check current state in case we're already connected
+    if (pusherClient.connection.state === "connected") {
+      setConnected(true);
+    }
 
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
       pusherClient.connection.unbind("state_change", handleStateChange);
     };
-  }, [channelId]);
+  }, [channelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sendMessage = async (author, content, replyTo = null) => {
+  const sendMessage = useCallback(async (author: string, content: string, replyTo: MessageData["replyTo"] | null = null) => {
     if (!content.trim()) return;
 
-    const time = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const timestamp = new Date().toISOString();
 
     const msgId = crypto.randomUUID();
-    const messageData = {
-      channelId, author, content, time, msgId,
+    const messageData: MessageData = {
+      channelId, author, content, timestamp, msgId,
       ...(replyTo ? { replyTo } : {}),
       status: "sending",
     };
@@ -152,22 +179,23 @@ export function useSocket(channelId, currentUsername, notificationPrefs = {}) {
     try {
       const res = await authFetch("/api/messages", {
         method: "POST",
-        body: JSON.stringify({ channelId, author, content, time, msgId, ...(replyTo ? { replyTo } : {}) }),
+        body: JSON.stringify({ channelId, author, content, timestamp, msgId, ...(replyTo ? { replyTo } : {}) }),
       });
       if (!res.ok) throw new Error("Failed");
     } catch (err) {
       console.error("Failed to save message:", err);
-      // B5 — mark as failed so the UI can show a retry option, remove the ghost
       setMessages((prev) => prev.filter((m) => m.msgId !== msgId));
     }
-  };
+  }, [channelId]);
 
-  const sendTyping = (username, isTyping) => {
+  const sendTyping = useCallback((username: string, isTyping: boolean) => {
+    // Fire-and-forget, but don't await getIdToken on every keystroke.
+    // authFetch handles the token internally.
     authFetch("/api/pusher/typing", {
       method: "POST",
       body: JSON.stringify({ channelId, username, isTyping }),
     }).catch(() => { });
-  };
+  }, [channelId]);
 
   return { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore };
 }

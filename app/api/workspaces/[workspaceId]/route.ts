@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import { Workspace } from "@/models/Workspace";
 import { Channel } from "@/models/Channel";
+import Message from "@/models/Message";
 import { verifyToken } from "@/lib/firebaseAdmin";
 
 export async function GET(req: Request, context: { params: Promise<{ workspaceId: string }> }) {
   try {
+    const uid = await verifyToken(req);
     const params = await context.params;
     if (!params.workspaceId) {
       return NextResponse.json(
@@ -17,11 +19,11 @@ export async function GET(req: Request, context: { params: Promise<{ workspaceId
     await connectDB();
     
     // Explicitly populate Channel here to ensure the model is loaded
-    // though Mongoose handles this via refs if 'Channel' is registered
     await Channel.init();
 
+    // Use verified token UID, or fall back to query param for backward compat
     const url = new URL(req.url);
-    const firebaseUid = url.searchParams.get("firebaseUid");
+    const firebaseUid = uid || url.searchParams.get("firebaseUid");
 
     const workspace = await Workspace.findById(params.workspaceId).populate("channels");
 
@@ -32,7 +34,16 @@ export async function GET(req: Request, context: { params: Promise<{ workspaceId
       );
     }
 
+    // Verify membership if we have a uid
     if (firebaseUid) {
+      const isMember = workspace.members.some((m: any) => m.firebaseUid === firebaseUid);
+      if (!isMember) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 }
+        );
+      }
+
       const allChannels = workspace.channels;
       const joinedChannels = allChannels.filter((c: any) => c.members && c.members.includes(firebaseUid));
       return NextResponse.json({ success: true, workspace, allChannels, joinedChannels });
@@ -42,7 +53,7 @@ export async function GET(req: Request, context: { params: Promise<{ workspaceId
   } catch (error: any) {
     console.error("Workspace GET Error:", error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }
@@ -64,11 +75,22 @@ export async function DELETE(req: Request, context: { params: Promise<{ workspac
     if (!workspace) {
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
+
+    // Only workspace owner can delete
+    const isOwner = workspace.members.some((m: any) => m.firebaseUid === uid && m.role === "owner");
+    if (!isOwner) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
     
-    await Workspace.findByIdAndDelete(params.workspaceId);
-    await Channel.deleteMany({ workspaceId: params.workspaceId });
+    // Clean up all associated data
+    const channelIds = workspace.channels.map((c: any) => c.toString());
     
-    // Also removing workspace references from users might be needed in a full prod app
+    await Promise.all([
+      Workspace.findByIdAndDelete(params.workspaceId),
+      Channel.deleteMany({ workspaceId: params.workspaceId }),
+      Message.deleteMany({ channelId: { $in: channelIds } }),
+    ]);
+    
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Workspace DELETE Error:", err);

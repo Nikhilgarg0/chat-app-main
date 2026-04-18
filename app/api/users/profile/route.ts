@@ -69,6 +69,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
+    console.error("Profile POST Error:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 }
@@ -78,18 +79,32 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
+    // Allow both auth token and firebaseUid query param for backward compat
+    // but prefer token-based auth when available
+    const uid = await verifyToken(req);
     const { searchParams } = new URL(req.url);
-    const firebaseUid = searchParams.get("firebaseUid");
+    const queryUid = searchParams.get("firebaseUid");
 
-    if (!firebaseUid) {
+    // Use verified token UID, or fall back to query param
+    const targetUid = uid || queryUid;
+
+    if (!targetUid) {
       return NextResponse.json(
         { success: false, error: "Missing firebaseUid" },
         { status: 400 }
       );
     }
 
+    // If auth token exists but doesn't match the queried uid, forbid
+    if (uid && queryUid && uid !== queryUid) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     await connectDB();
-    const user = await User.findOne({ firebaseUid });
+    const user = await User.findOne({ firebaseUid: targetUid });
 
     if (!user) {
       return NextResponse.json(
@@ -102,7 +117,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Profile GET Error:", error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

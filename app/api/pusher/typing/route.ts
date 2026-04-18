@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher-server";
+import { verifyToken } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
+    const uid = await verifyToken(req);
+    if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
     const { channelId, username, isTyping } = await req.json();
 
     await pusherServer.trigger(`chat-${channelId}`, "user-typing", { username, isTyping });
