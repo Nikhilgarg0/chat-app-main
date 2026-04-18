@@ -3,68 +3,9 @@
 ============================================================
 
 
-------------------------------------------------------------
-  SECTION 1: CRITICAL (Security)
-------------------------------------------------------------
-
-1. No authentication on any API route
-   Every endpoint — messages, workspaces, channels, reactions,
-   AI — accepts requests with just a firebaseUid in the body.
-   Anyone can forge a UID and post, delete, or fetch messages
-   as any user. No server-side token verification exists
-   (e.g. Firebase Admin SDK).
-
-2. No rate limiting on the AI endpoint
-   POST /api/ai calls Gemini with no rate limiting, no auth,
-   and no cost guard. Any unauthenticated caller can hammer it
-   and run up the Gemini API bill freely.
-
-3. Workspace membership not verified before reading messages
-   GET /api/messages?channelId=X returns all messages from any
-   channel with no check that the requester is a member of the
-   parent workspace.
-
 
 ------------------------------------------------------------
-  SECTION 2: BUGS
-------------------------------------------------------------
-
-1. Mobile keyboard breaks the entire layout
-   The app uses h-screen / min-h-screen (100vh). On mobile,
-   when the software keyboard appears, the browser shrinks the
-   visual viewport but 100vh stays fixed — so the top of the
-   app scrolls off-screen. The fix is to use 100dvh or the
-   visualViewport API. Neither is present. The maximum-scale=1
-   viewport meta makes this worse by preventing browser-level
-   adjustments.
-
-
-------------------------------------------------------------
-  SECTION 3: QUALITY / CODE SMELL
-------------------------------------------------------------
-
-1. Inconsistent JS/TS across the project
-   app/api/messages/route.js, models/Message.js,
-   hooks/useSocket.js, lib/mongodb.js, and app/layout.js are
-   plain JavaScript while the rest of the project is
-   TypeScript. This breaks type safety across the most
-   critical paths — messages, DB connection, real-time hook.
-
-2. time stored as a locale string
-   Messages persist time as new Date().toLocaleTimeString() —
-   a string like "02:45 PM" that varies by the server's
-   locale/timezone. Cannot be reliably sorted, compared, or
-   displayed correctly for users in different timezones. Store
-   an ISO timestamp and format client-side.
-
-3. No pagination on messages
-   Both GET /api/messages and the AI context fetch hardcode
-   .limit(50). There is no cursor/offset pagination — channels
-   with more than 50 messages silently drop older history.
-
-
-------------------------------------------------------------
-  SECTION 4: MISSING FEATURES / UX
+  SECTION 1: MISSING FEATURES / UX
 ------------------------------------------------------------
 
 1. Mobile responsiveness / logout usability
