@@ -34,7 +34,7 @@ export default function BrowseChannels({ params }: { params: Promise<{ workspace
           setAllChannels(data.allChannels || []);
           setJoinedIds(new Set((data.joinedChannels || []).map((c: any) => c._id)));
         }
-      } catch (err) {} finally {
+      } catch (err) { } finally {
         setLoading(false);
       }
     };
@@ -67,8 +67,8 @@ export default function BrowseChannels({ params }: { params: Promise<{ workspace
     <div className="flex flex-1 flex-col relative h-full bg-[var(--bg-base)] w-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 lg:px-6 py-3 lg:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
-        <button 
-          onClick={() => router.back()} 
+        <button
+          onClick={() => router.back()}
           className="p-1 -ml-1 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -116,16 +116,19 @@ export default function BrowseChannels({ params }: { params: Promise<{ workspace
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="shrink-0 ml-4">
                       {isOwner ? (
                         <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)] rounded-full">
                           Owner
                         </span>
                       ) : isJoined ? (
-                        <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-[var(--success)]">
-                          Joined ✓
-                        </span>
+                        <button
+                          onClick={() => router.push(`/workspace/${unwrappedParams.workspaceId}/channel/${channel._id}`)}
+                          className="px-4 py-1.5 text-sm font-medium text-[var(--accent)] border border-[var(--accent)] rounded-lg hover:bg-[var(--accent)] hover:text-white transition-colors active:scale-[0.98]"
+                        >
+                          Open
+                        </button>
                       ) : (
                         <button
                           onClick={() => handleJoin(channel._id)}
