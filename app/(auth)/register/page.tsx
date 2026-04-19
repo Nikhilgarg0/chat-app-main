@@ -252,30 +252,28 @@ export default function RegisterPage() {
 
   return (
     <>
-      {/* Mobile Brand Title */}
-      <div className="lg:hidden text-center mb-8 mt-4">
-        <h1 className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] mb-2">Nexus</h1>
-        <p className="text-[var(--text-secondary)] text-sm px-2">Your team's second brain. Secure, fast, and remarkably intelligent.</p>
-      </div>
-
       {/* ─── Step 1: Details Form ──────────────────────────────── */}
       {step === "details" && (
         <>
-          <div className="space-y-1.5 mb-2">
-            <h2 className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">Create Account</h2>
-            <p className="text-[14px] text-[var(--text-secondary)]">Sign up to get started.</p>
+          <div className="space-y-2 mb-2">
+            <h2 className="text-[32px] font-semibold tracking-[-0.03em] text-white leading-tight">
+              Create Account
+            </h2>
+            <p className="text-[15px] text-white/40">
+              Sign up to get started with Nexus
+            </p>
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[13px] font-medium">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[13px] font-medium">
               {error}
             </div>
           )}
 
-          <form className="flex flex-col gap-4 mt-2" onSubmit={handleSendOtp}>
+          <form className="flex flex-col gap-5" onSubmit={handleSendOtp}>
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[var(--text-primary)]">Display Name</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/70">Display Name</label>
                 <input
                   type="text"
                   placeholder="Steve Jobs"
@@ -283,22 +281,22 @@ export default function RegisterPage() {
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
                   autoFocus
-                  className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] px-[14px] py-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-[15px] focus:border-white/20 focus:bg-white/[0.06] outline-none transition-all placeholder:text-white/20"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[var(--text-primary)]">Email</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/70">Email</label>
                 <input
                   type="email"
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] px-[14px] py-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-[15px] focus:border-white/20 focus:bg-white/[0.06] outline-none transition-all placeholder:text-white/20"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[var(--text-primary)]">Password</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/70">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -306,20 +304,21 @@ export default function RegisterPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] px-[14px] pr-[40px] py-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 pr-11 py-3 text-white text-[15px] focus:border-white/20 focus:bg-white/[0.06] outline-none transition-all placeholder:text-white/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-[14px] top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <div className="mt-1.5 flex gap-1.5 items-center">
-                  <span className={`h-1 flex-1 rounded-full transition-colors ${password.length === 0 ? 'bg-[var(--border)]' : password.length < 6 ? 'bg-red-500' : 'bg-green-500'}`} />
-                  <span className="text-[11px] text-[var(--text-tertiary)] flex-shrink-0 w-24 text-right">
+                {/* Password strength */}
+                <div className="flex gap-1.5 items-center mt-1">
+                  <span className={`h-[3px] flex-1 rounded-full transition-colors ${password.length === 0 ? 'bg-white/[0.06]' : password.length < 6 ? 'bg-red-500/60' : 'bg-emerald-500/60'}`} />
+                  <span className="text-[11px] text-white/25 flex-shrink-0 w-20 text-right">
                     {password.length === 0 ? "Min 6 chars" : password.length < 6 ? "Too short" : "Looks good"}
                   </span>
                 </div>
@@ -329,37 +328,41 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isSendingOtp}
-              className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-[var(--accent)] text-white rounded-[980px] px-[20px] py-[12px] font-medium hover:bg-[var(--accent-hover)] transition-colors mt-2 text-[15px] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-white text-black rounded-xl px-5 py-3 font-semibold text-[15px] hover:bg-white/90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSendingOtp ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
               Send Verification Code
             </button>
           </form>
 
-          <div className="relative my-5">
+          {/* Divider */}
+          <div className="relative my-1">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-[var(--border)]" />
+              <span className="w-full border-t border-white/[0.06]" />
             </div>
             <div className="relative flex justify-center text-[12px]">
-              <span className="bg-[var(--bg-base)] px-3 text-[var(--text-tertiary)]">
-                or continue with
+              <span className="bg-[#0a0a0a] px-4 text-white/25">
+                or
               </span>
             </div>
           </div>
 
+          {/* Google */}
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={isLoading || isSendingOtp}
-            className="w-full min-h-[44px] flex items-center justify-center gap-3 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-[980px] px-[20px] py-[11px] font-medium hover:bg-[var(--bg-elevated)] transition-colors text-[15px] shadow-[var(--shadow-sm)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full min-h-[48px] flex items-center justify-center gap-3 bg-transparent border border-white/[0.08] text-white/70 rounded-xl px-5 py-3 font-medium text-[15px] hover:bg-white/[0.04] hover:border-white/[0.12] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-            Continue with Google
+            <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Sign Up with Google
           </button>
 
-          <div className="text-center mt-6">
-            <Link href="/login" className="text-[14px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
-              Already have an account? Sign in
+          {/* Footer Link */}
+          <div className="text-center mt-4">
+            <span className="text-[14px] text-white/30">Already have an account? </span>
+            <Link href="/login" className="text-[14px] text-white font-medium hover:underline transition-all">
+              Sign In
             </Link>
           </div>
         </>
@@ -371,31 +374,31 @@ export default function RegisterPage() {
           <button
             type="button"
             onClick={() => { setStep("details"); setError(""); }}
-            className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors mb-2 -mt-1"
+            className="flex items-center gap-1.5 text-[13px] text-white/40 hover:text-white/70 transition-colors -mt-1"
           >
             <ArrowLeft size={14} />
             Back
           </button>
 
-          <div className="space-y-1.5 mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/20 flex items-center justify-center">
-                <ShieldCheck size={18} className="text-[var(--accent)]" />
+          <div className="space-y-3 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center">
+                <ShieldCheck size={20} className="text-white/60" />
               </div>
-              <h2 className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">Verify Email</h2>
+              <h2 className="text-[28px] font-semibold tracking-[-0.03em] text-white leading-tight">Verify Email</h2>
             </div>
-            <p className="text-[14px] text-[var(--text-secondary)] mt-2">
-              We sent a 6-digit code to <span className="font-medium text-[var(--text-primary)]">{email}</span>
+            <p className="text-[14px] text-white/40">
+              We sent a 6-digit code to <span className="font-medium text-white/70">{email}</span>
             </p>
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[13px] font-medium">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[13px] font-medium">
               {error}
             </div>
           )}
 
-          <form className="flex flex-col gap-5 mt-3" onSubmit={handleVerifyOtp}>
+          <form className="flex flex-col gap-6 mt-1" onSubmit={handleVerifyOtp}>
             {/* 6-digit OTP input */}
             <div className="flex justify-center gap-2.5" onPaste={handleOtpPaste}>
               {otpDigits.map((digit, i) => (
@@ -409,7 +412,7 @@ export default function RegisterPage() {
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                  className="w-[46px] h-[52px] text-center text-xl font-semibold bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all selection:bg-transparent"
+                  className="w-[48px] h-[56px] text-center text-xl font-semibold bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:border-white/25 focus:bg-white/[0.06] outline-none transition-all selection:bg-transparent"
                 />
               ))}
             </div>
@@ -417,18 +420,18 @@ export default function RegisterPage() {
             {/* Timer & Resend */}
             <div className="flex items-center justify-center gap-2 text-[13px]">
               {otpTimer > 0 ? (
-                <span className="text-[var(--text-tertiary)]">
-                  Code expires in <span className="font-medium text-[var(--text-secondary)]">{formatTimer(otpTimer)}</span>
+                <span className="text-white/25">
+                  Code expires in <span className="font-medium text-white/50">{formatTimer(otpTimer)}</span>
                 </span>
               ) : (
-                <span className="text-[var(--text-tertiary)]">Code expired.</span>
+                <span className="text-white/25">Code expired.</span>
               )}
-              <span className="text-[var(--border)]">·</span>
+              <span className="text-white/10">·</span>
               <button
                 type="button"
                 onClick={handleResendOtp}
                 disabled={otpTimer > 0 || isSendingOtp}
-                className="text-[var(--accent)] font-medium hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed transition-opacity"
+                className="text-white font-medium hover:underline disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed transition-opacity"
               >
                 {isSendingOtp ? "Sending..." : "Resend"}
               </button>
@@ -437,7 +440,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isLoading || otpDigits.some((d) => d === "")}
-              className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-[var(--accent)] text-white rounded-[980px] px-[20px] py-[12px] font-medium hover:bg-[var(--accent-hover)] transition-colors text-[15px] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-white text-black rounded-xl px-5 py-3 font-semibold text-[15px] hover:bg-white/90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
               Verify & Create Account

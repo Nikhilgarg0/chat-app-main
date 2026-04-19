@@ -125,7 +125,14 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) return <div className="flex-1 flex items-center justify-center p-8">Loading profile...</div>;
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center p-8 bg-[var(--bg-base)]">
+      <div className="flex flex-col items-center gap-4 animate-slide-up">
+        <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center text-white font-bold text-lg shadow-[var(--shadow)]">N</div>
+        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex-1 relative flex flex-col items-center bg-[var(--bg-base)] overflow-y-auto">
@@ -176,7 +183,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 placeholder="Set a custom status..."
-                className="w-full p-2 bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:ring-1 text-center"
+                className="w-full p-2.5 bg-[var(--bg-elevated)] text-[var(--text-primary)] rounded-[10px] border border-[var(--border)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all text-center placeholder:text-[var(--text-tertiary)]"
                 value={formData.customStatus}
                 onChange={(e) => handleChange("customStatus", e.target.value)}
                 maxLength={80}
@@ -189,26 +196,26 @@ export default function ProfilePage() {
         <div className="mt-10 space-y-8">
           
           <section>
-            <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)] border-b border-[var(--border)] pb-2">Basic Info</h2>
+            <h2 className="text-sm font-semibold mb-4 text-[var(--text-secondary)] uppercase tracking-wider border-b border-[var(--border)] pb-3">Basic Info</h2>
             <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-[var(--text-primary)]">Display Name</label>
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-medium text-[var(--text-primary)]">Display Name</label>
                 <input 
                   type="text" 
-                  className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-md text-[var(--text-primary)] focus:outline-none" 
+                  className="w-full p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all" 
                   value={formData.displayName}
                   onChange={(e) => handleChange("displayName", e.target.value)}
                   required
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1 flex justify-between text-[var(--text-primary)]">
+              <div className="space-y-1.5">
+                <label className="flex justify-between text-[13px] font-medium text-[var(--text-primary)]">
                   <span>Bio</span>
-                  <span className="text-[var(--text-secondary)] text-xs">{formData.bio?.length || 0} / 160</span>
+                  <span className="text-[var(--text-tertiary)] text-[11px]">{formData.bio?.length || 0} / 160</span>
                 </label>
                 <textarea 
-                  className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-md text-[var(--text-primary)] focus:outline-none resize-none" 
+                  className="w-full p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all resize-none" 
                   rows={3}
                   value={formData.bio}
                   onChange={(e) => handleChange("bio", e.target.value)}
@@ -216,10 +223,10 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1 text-[var(--text-primary)]">Timezone</label>
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-medium text-[var(--text-primary)]">Timezone</label>
                 <select 
-                  className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-md text-[var(--text-primary)] focus:outline-none"
+                  className="w-full p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all appearance-none cursor-pointer"
                   value={formData.timezone}
                   onChange={(e) => handleChange("timezone", e.target.value)}
                 >
@@ -232,38 +239,38 @@ export default function ProfilePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)] border-b border-[var(--border)] pb-2">Social Links</h2>
+            <h2 className="text-sm font-semibold mb-4 text-[var(--text-secondary)] uppercase tracking-wider border-b border-[var(--border)] pb-3">Social Links</h2>
             <div className="space-y-3">
               <div className="flex items-center">
-                <span className="p-2 bg-[var(--border)] rounded-l-md text-[var(--text-primary)]"><Twitter className="w-5 h-5"/></span>
-                <input type="text" className="flex-1 p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-r-md text-[var(--text-primary)] outline-none" value={formData.socialLinks.twitter} onChange={(e) => handleChange("socialLinks.twitter", e.target.value)} placeholder="Twitter Username" />
+                <span className="p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] border-r-0 rounded-l-[10px] text-[var(--text-secondary)]"><Twitter className="w-4 h-4"/></span>
+                <input type="text" className="flex-1 p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-r-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]" value={formData.socialLinks.twitter} onChange={(e) => handleChange("socialLinks.twitter", e.target.value)} placeholder="Twitter Username" />
               </div>
               <div className="flex items-center">
-                <span className="p-2 bg-[var(--border)] rounded-l-md text-[var(--text-primary)]"><Github className="w-5 h-5"/></span>
-                <input type="text" className="flex-1 p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-r-md text-[var(--text-primary)] outline-none" value={formData.socialLinks.github} onChange={(e) => handleChange("socialLinks.github", e.target.value)} placeholder="GitHub Username" />
+                <span className="p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] border-r-0 rounded-l-[10px] text-[var(--text-secondary)]"><Github className="w-4 h-4"/></span>
+                <input type="text" className="flex-1 p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-r-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]" value={formData.socialLinks.github} onChange={(e) => handleChange("socialLinks.github", e.target.value)} placeholder="GitHub Username" />
               </div>
               <div className="flex items-center">
-                <span className="p-2 bg-[var(--border)] rounded-l-md text-[var(--text-primary)]"><Linkedin className="w-5 h-5"/></span>
-                <input type="text" className="flex-1 p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-r-md text-[var(--text-primary)] outline-none" value={formData.socialLinks.linkedin} onChange={(e) => handleChange("socialLinks.linkedin", e.target.value)} placeholder="LinkedIn Profile URL" />
+                <span className="p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] border-r-0 rounded-l-[10px] text-[var(--text-secondary)]"><Linkedin className="w-4 h-4"/></span>
+                <input type="text" className="flex-1 p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-r-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]" value={formData.socialLinks.linkedin} onChange={(e) => handleChange("socialLinks.linkedin", e.target.value)} placeholder="LinkedIn Profile URL" />
               </div>
               <div className="flex items-center">
-                <span className="p-2 bg-[var(--border)] rounded-l-md text-[var(--text-primary)]"><Globe className="w-5 h-5"/></span>
-                <input type="text" className="flex-1 p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-r-md text-[var(--text-primary)] outline-none" value={formData.socialLinks.website} onChange={(e) => handleChange("socialLinks.website", e.target.value)} placeholder="Personal Website URL" />
+                <span className="p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] border-r-0 rounded-l-[10px] text-[var(--text-secondary)]"><Globe className="w-4 h-4"/></span>
+                <input type="text" className="flex-1 p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-r-[10px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder:text-[var(--text-tertiary)]" value={formData.socialLinks.website} onChange={(e) => handleChange("socialLinks.website", e.target.value)} placeholder="Personal Website URL" />
               </div>
             </div>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)] border-b border-[var(--border)] pb-2">Preferences</h2>
+            <h2 className="text-sm font-semibold mb-4 text-[var(--text-secondary)] uppercase tracking-wider border-b border-[var(--border)] pb-3">Preferences</h2>
             
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 text-[var(--text-primary)]">Theme</label>
-              <div className="flex rounded-md overflow-hidden border border-[var(--border)] max-w-sm">
+              <label className="block text-[13px] font-medium mb-2 text-[var(--text-primary)]">Theme</label>
+              <div className="flex rounded-[10px] overflow-hidden border border-[var(--border)] max-w-sm">
                 {['light', 'dark', 'system'].map((t) => (
                   <button
                     key={t}
                     onClick={() => handleChange("theme", t)}
-                    className={`flex-1 py-2 text-sm capitalize transition ${formData.theme === t ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--border)]'}`}
+                    className={`flex-1 py-2.5 text-[13px] capitalize transition-all font-medium ${formData.theme === t ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'}`}
                   >
                     {t}
                   </button>
@@ -271,19 +278,19 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium mb-2 text-[var(--text-primary)]">Notifications</label>
-              <label className="flex items-center space-x-2 text-[var(--text-primary)]">
-                <input type="checkbox" checked={formData.notificationPrefs.mentions} onChange={(e) => handleNotificationChange("mentions", e.target.checked)} className="rounded text-[var(--accent)] outline-none" />
-                <span>Notify on @mentions</span>
+            <div className="space-y-3">
+              <label className="block text-[13px] font-medium mb-2 text-[var(--text-primary)]">Notifications</label>
+              <label className="flex items-center gap-3 text-[var(--text-primary)] cursor-pointer group">
+                <input type="checkbox" checked={formData.notificationPrefs.mentions} onChange={(e) => handleNotificationChange("mentions", e.target.checked)} className="w-4 h-4 rounded accent-[var(--accent)] cursor-pointer" />
+                <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Notify on @mentions</span>
               </label>
-              <label className="flex items-center space-x-2 text-[var(--text-primary)]">
-                <input type="checkbox" checked={formData.notificationPrefs.allMessages} onChange={(e) => handleNotificationChange("allMessages", e.target.checked)} className="rounded text-[var(--accent)] outline-none" />
-                <span>Notify on all messages</span>
+              <label className="flex items-center gap-3 text-[var(--text-primary)] cursor-pointer group">
+                <input type="checkbox" checked={formData.notificationPrefs.allMessages} onChange={(e) => handleNotificationChange("allMessages", e.target.checked)} className="w-4 h-4 rounded accent-[var(--accent)] cursor-pointer" />
+                <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Notify on all messages</span>
               </label>
-              <label className="flex items-center space-x-2 text-[var(--text-primary)]">
-                <input type="checkbox" checked={formData.notificationPrefs.sounds} onChange={(e) => handleNotificationChange("sounds", e.target.checked)} className="rounded text-[var(--accent)] outline-none" />
-                <span>Play notification sounds</span>
+              <label className="flex items-center gap-3 text-[var(--text-primary)] cursor-pointer group">
+                <input type="checkbox" checked={formData.notificationPrefs.sounds} onChange={(e) => handleNotificationChange("sounds", e.target.checked)} className="w-4 h-4 rounded accent-[var(--accent)] cursor-pointer" />
+                <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Play notification sounds</span>
               </label>
             </div>
           </section>
@@ -292,8 +299,8 @@ export default function ProfilePage() {
 
         {/* Global Error/Success Inline Messages */}
         {errorVisible && (
-          <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-md flex items-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
+          <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[13px] font-medium flex items-center">
+            <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
             {errorVisible}
           </div>
         )}

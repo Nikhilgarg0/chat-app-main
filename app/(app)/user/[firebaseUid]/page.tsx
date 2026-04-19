@@ -53,12 +53,26 @@ export default function PublicProfilePage({ params }: { params: Promise<{ fireba
     }
   }, [profile?.timezone]);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center">Loading profile...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center flex-col"><p className="text-red-500 mb-4">{error}</p><button onClick={() => router.back()} className="text-indigo-600 hover:underline">Go back</button></div>;
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]">
+      <div className="flex flex-col items-center gap-4 animate-slide-up">
+        <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center text-white font-bold text-lg shadow-[var(--shadow)]">N</div>
+        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin" />
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex-1 flex items-center justify-center flex-col bg-[var(--bg-base)]">
+      <p className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[13px] font-medium mb-4">{error}</p>
+      <button onClick={() => router.back()} className="text-[var(--accent)] hover:underline text-[14px] font-medium">Go back</button>
+    </div>
+  );
+
   if (!profile) return null;
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--background)] overflow-y-auto">
+    <div className="flex-1 flex flex-col bg-[var(--bg-base)] overflow-y-auto">
       {/* Top Banner Area */}
       <div 
         className="w-full relative h-48 md:h-64 flex-shrink-0"
@@ -74,19 +88,17 @@ export default function PublicProfilePage({ params }: { params: Promise<{ fireba
 
       <div className="max-w-3xl w-full mx-auto px-6 -mt-16 relative z-10 pb-24">
         <div className="flex flex-col items-center">
-          <div style={{ width: 100, height: 100 }} className="rounded-full overflow-hidden border-4 border-[var(--background)]">
+          <div style={{ width: 100, height: 100 }} className="rounded-full overflow-hidden border-4 border-[var(--bg-base)]">
             <UserAvatar size={100} avatarUrl={profile.avatarUrl} displayName={profile.displayName} />
           </div>
           
           <div className="mt-4 text-center w-full">
             <div className="flex items-center justify-center space-x-2">
-              <h1 className="text-3xl font-bold text-[var(--foreground)]">{profile.displayName}</h1>
-              {/* Online status indicator can be expanded by parent components if needed. Currently UI is just here. */}
-              {/* We'll pass a fixed grey dot here, but if we need to sync online status we should pass it via context or props. */}
+              <h1 className="text-3xl font-bold text-[var(--text-primary)]">{profile.displayName}</h1>
             </div>
             
             {profile.customStatus && (
-              <p className="mt-2 text-[var(--foreground)] bg-[var(--muted)] inline-block px-4 py-1 rounded-full text-sm">
+              <p className="mt-2 text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border)] inline-block px-4 py-1 rounded-full text-sm">
                 {profile.customStatus}
               </p>
             )}
@@ -94,7 +106,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ fireba
             <div className="mt-4 flex justify-center">
               <button 
                 onClick={() => alert("DMs coming soon")} 
-                className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full font-medium transition"
+                className="flex items-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white px-6 py-2.5 rounded-full font-medium transition-all active:scale-[0.98]"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Send message</span>
@@ -102,37 +114,37 @@ export default function PublicProfilePage({ params }: { params: Promise<{ fireba
             </div>
             
             {profile.timezone && localTime && (
-              <p className="mt-4 text-sm text-[var(--muted-foreground)]">
+              <p className="mt-4 text-sm text-[var(--text-secondary)]">
                 Local time: {localTime}
               </p>
             )}
 
             {profile.bio && (
-              <div className="mt-6 max-w-lg mx-auto text-[var(--foreground)]">
+              <div className="mt-6 max-w-lg mx-auto text-[var(--text-primary)]">
                 <p>{profile.bio}</p>
               </div>
             )}
             
             {profile.socialLinks && Object.values(profile.socialLinks).some(val => val) && (
-              <div className="mt-8 flex justify-center space-x-4">
+              <div className="mt-8 flex justify-center space-x-3">
                 {profile.socialLinks.twitter && (
-                  <a href={`https://twitter.com/${profile.socialLinks.twitter}`} target="_blank" rel="noopener noreferrer" className="p-2 text-[var(--muted-foreground)] hover:text-[#1DA1F2] hover:bg-[var(--muted)] rounded-full transition">
-                    <Twitter className="w-6 h-6" />
+                  <a href={`https://twitter.com/${profile.socialLinks.twitter}`} target="_blank" rel="noopener noreferrer" className="p-2.5 text-[var(--text-secondary)] hover:text-[#1DA1F2] hover:bg-[var(--bg-elevated)] rounded-xl border border-transparent hover:border-[var(--border)] transition-all">
+                    <Twitter className="w-5 h-5" />
                   </a>
                 )}
                 {profile.socialLinks.github && (
-                  <a href={`https://github.com/${profile.socialLinks.github}`} target="_blank" rel="noopener noreferrer" className="p-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] rounded-full transition">
-                    <Github className="w-6 h-6" />
+                  <a href={`https://github.com/${profile.socialLinks.github}`} target="_blank" rel="noopener noreferrer" className="p-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-xl border border-transparent hover:border-[var(--border)] transition-all">
+                    <Github className="w-5 h-5" />
                   </a>
                 )}
                 {profile.socialLinks.linkedin && (
-                  <a href={profile.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="p-2 text-[var(--muted-foreground)] hover:text-[#0077b5] hover:bg-[var(--muted)] rounded-full transition">
-                    <Linkedin className="w-6 h-6" />
+                  <a href={profile.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="p-2.5 text-[var(--text-secondary)] hover:text-[#0077b5] hover:bg-[var(--bg-elevated)] rounded-xl border border-transparent hover:border-[var(--border)] transition-all">
+                    <Linkedin className="w-5 h-5" />
                   </a>
                 )}
                 {profile.socialLinks.website && (
-                  <a href={profile.socialLinks.website.startsWith('http') ? profile.socialLinks.website : `https://${profile.socialLinks.website}`} target="_blank" rel="noopener noreferrer" className="p-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] rounded-full transition">
-                    <Globe className="w-6 h-6" />
+                  <a href={profile.socialLinks.website.startsWith('http') ? profile.socialLinks.website : `https://${profile.socialLinks.website}`} target="_blank" rel="noopener noreferrer" className="p-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-xl border border-transparent hover:border-[var(--border)] transition-all">
+                    <Globe className="w-5 h-5" />
                   </a>
                 )}
               </div>

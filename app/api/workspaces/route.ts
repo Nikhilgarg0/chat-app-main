@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const uid = await verifyToken(req);
     if (!uid) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    const { name } = await req.json();
+    const { name, customInviteCode } = await req.json();
 
     if (!name) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -37,8 +37,33 @@ export async function POST(req: Request) {
     let baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     if (!baseSlug) baseSlug = "workspace";
 
-    // Q6 — drop the race-prone while loop, let MongoDB unique index handle it
-    const inviteCode = crypto.randomUUID().substring(0, 6).toUpperCase();
+    // Allow custom invite code or generate a random one
+    let inviteCode: string;
+
+    if (customInviteCode && typeof customInviteCode === "string") {
+      const cleaned = customInviteCode.trim().toUpperCase();
+
+      // Validate: 4-8 alphanumeric characters
+      if (!/^[A-Z0-9]{4,8}$/.test(cleaned)) {
+        return NextResponse.json(
+          { success: false, error: "Invite code must be 4-8 alphanumeric characters" },
+          { status: 400 }
+        );
+      }
+
+      // Check uniqueness
+      const existing = await Workspace.findOne({ inviteCode: cleaned });
+      if (existing) {
+        return NextResponse.json(
+          { success: false, error: "That invite code is already taken. Try another one." },
+          { status: 409 }
+        );
+      }
+
+      inviteCode = cleaned;
+    } else {
+      inviteCode = crypto.randomUUID().substring(0, 6).toUpperCase();
+    }
 
     try {
       const workspace = await Workspace.create({
@@ -61,6 +86,12 @@ export async function POST(req: Request) {
           inviteCode,
         });
         return NextResponse.json({ success: true, workspace });
+      }
+      if (err.code === 11000 && err.keyPattern?.inviteCode) {
+        return NextResponse.json(
+          { success: false, error: "Invite code collision. Please try again." },
+          { status: 409 }
+        );
       }
       throw err;
     }

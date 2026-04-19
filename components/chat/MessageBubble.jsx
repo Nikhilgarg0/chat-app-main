@@ -136,8 +136,8 @@ export default function MessageBubble({
 
   const handleDelete = () => { setMenuOpen(false); onDelete?.(message._id); };
   const handleReplyClick = () => { setMenuOpen(false); onReply?.(message); };
-  const handleForward = () => { 
-    setMenuOpen(false); 
+  const handleForward = () => {
+    setMenuOpen(false);
     if (onForward) {
       onForward(message);
     } else {
@@ -170,6 +170,7 @@ export default function MessageBubble({
         style={{
           position: "relative",
           marginTop: isGrouped ? 2 : 16,
+          zIndex: menuOpen ? 100 : 1,
         }}
       >
         {/* ── Reply icon that appears from the left as user swipes ── */}
@@ -480,11 +481,11 @@ function ActionItem({ icon, label, onClick, danger = false }) {
         padding: "0 16px", border: "none",
         background: hov ? "var(--bg-elevated)" : "transparent",
         color: danger ? "#ff3b30" : "var(--text-primary)",
-        fontSize: 14, cursor: "pointer", textAlign: "left",
+        fontSize: 14, fontWeight: 500, cursor: "pointer", textAlign: "left",
         transition: "background 0.12s",
       }}
     >
-      <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: 16, lineHeight: 1, opacity: 0.7 }}>{icon}</span>
       <span>{label}</span>
     </button>
   );
@@ -514,34 +515,56 @@ function ContextMenu({ menuRef, menuAbove, showExtraEmojis, setShowExtraEmojis, 
       ref={menuRef}
       style={{
         position: "absolute",
-        [menuAbove ? "bottom" : "top"]: "calc(100% + 6px)",
+        [menuAbove ? "bottom" : "top"]: "calc(100% + 8px)",
         left: menuStyle.left,
         opacity: menuStyle.opacity,
         zIndex: 200,
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 16,
-        boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
-        backdropFilter: "blur(20px)",
+        background: "color-mix(in srgb, var(--bg-surface) 25%, transparent)",
+        backdropFilter: "blur(12px) saturate(200%)",
+        WebkitBackdropFilter: "blur(12px) saturate(200%)",
+        border: "1px solid color-mix(in srgb, var(--border-strong) 80%, transparent)",
+        borderRadius: 14,
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.15)",
         overflow: "hidden",
-        minWidth: 200,
+        minWidth: 220,
         transition: "opacity 0.1s ease",
+        animation: "ctxFadeIn 0.15s ease",
+        isolation: "isolate",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", padding: "6px 8px", gap: 2, borderBottom: "1px solid var(--border)" }}>
+      {/* Emoji row */}
+      <div style={{
+        display: "flex", alignItems: "center",
+        padding: "8px 10px", gap: 2,
+        borderBottom: "1px solid var(--border)",
+        background: "transparent",
+      }}>
         {(showExtraEmojis ? EXTRA_EMOJIS : PRIMARY_EMOJIS).map((emoji) => (
           <EmojiBtn key={emoji} emoji={emoji} onClick={() => onReact(emoji)} />
         ))}
         <EmojiBtn emoji={showExtraEmojis ? "←" : "+"} onClick={() => setShowExtraEmojis(v => !v)} small />
       </div>
-      <div style={{ padding: "4px 0" }}>
+
+      {/* Action items */}
+      <div style={{ padding: "4px 0", background: "transparent" }}>
         <ActionItem icon={<Reply className="w-4 h-4" />} label="Reply" onClick={onReply} />
         <ActionItem icon={<Copy className="w-4 h-4" />} label="Copy" onClick={onCopy} />
         <ActionItem icon={<Forward className="w-4 h-4" />} label="Forward" onClick={onForward} />
         {isOwn && <ActionItem icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={onDelete} danger />}
       </div>
+
+      {/* Timestamp footer */}
       {time && (
-        <div style={{ borderTop: "1px solid var(--border)", padding: "10px 16px", fontSize: 11, color: "var(--text-tertiary)", textAlign: "center", fontFamily: "monospace", letterSpacing: "0.02em" }}>
+        <div style={{
+          borderTop: "1px solid var(--border)",
+          padding: "8px 16px",
+          fontSize: 11,
+          color: "var(--text-tertiary)",
+          textAlign: "center",
+          fontFamily: "monospace",
+          letterSpacing: "0.02em",
+          background: "transparent",
+        }}>
           Sent at {time}
         </div>
       )}

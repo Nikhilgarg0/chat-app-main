@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import { Workspace } from "@/models/Workspace";
+import { JoinRequest } from "@/models/JoinRequest";
 import { verifyToken } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
@@ -31,14 +32,39 @@ export async function POST(req: Request) {
       );
     }
 
+    // Already a member → just navigate
     const isMember = workspace.members.some((m: any) => m.firebaseUid === uid);
-
-    if (!isMember) {
-      workspace.members.push({ firebaseUid: uid, role: "member" });
-      await workspace.save();
+    if (isMember) {
+      return NextResponse.json({ success: true, workspace, alreadyMember: true });
     }
 
-    return NextResponse.json({ success: true, workspace });
+    // Check if there's already a pending request
+    const existingRequest = await JoinRequest.findOne({
+      workspaceId: workspace._id,
+      firebaseUid: uid,
+      status: "pending",
+    });
+
+    if (existingRequest) {
+      return NextResponse.json({
+        success: false,
+        error: "You already have a pending request for this workspace.",
+        requestPending: true,
+      }, { status: 409 });
+    }
+
+    // Create a new join request
+    const joinRequest = await JoinRequest.create({
+      workspaceId: workspace._id,
+      firebaseUid: uid,
+    });
+
+    return NextResponse.json({
+      success: true,
+      requestSent: true,
+      workspaceName: workspace.name,
+      joinRequest,
+    });
   } catch (error: any) {
     console.error("Workspace Join Error:", error);
     return NextResponse.json(
