@@ -19,25 +19,40 @@ export default function WorkspacePage() {
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
 
+  // ✅ FIX 1: Track the Firebase user in state so we know when auth is ready
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // ✅ FIX 2: Wait for Firebase Auth to initialize before doing anything
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsub();
+  }, []);
+
+  // ✅ FIX 3: Only fetch workspace once currentUser is available,
+  //           and use currentUser.uid instead of auth.currentUser?.uid
   useEffect(() => {
     const fetchWS = async () => {
+      if (!currentUser) return; // wait until Firebase Auth is ready
       try {
         const res = await authFetch(`/api/workspaces/${workspaceId}`);
         if (res.ok) {
           const data = await res.json();
           setWorkspace(data.workspace);
-          
+
           // Check if current user is owner
-          const uid = auth.currentUser?.uid;
-          const ownerCheck = data.workspace.members?.some((m: any) => m.firebaseUid === uid && m.role === "owner");
+          const ownerCheck = data.workspace.members?.some(
+            (m: any) => m.firebaseUid === currentUser.uid && m.role === "owner"
+          );
           setIsOwner(ownerCheck);
         }
-      } catch (err) {}
+      } catch (err) { }
     };
     if (workspaceId) fetchWS();
-  }, [workspaceId]);
+  }, [workspaceId, currentUser]); // ✅ currentUser added as dependency
 
-  // Fetch pending join requests if owner
+  // Fetch pending join requests if owner (unchanged)
   useEffect(() => {
     if (!isOwner || !workspaceId) return;
 
@@ -101,7 +116,7 @@ export default function WorkspacePage() {
       <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b border-[var(--border)] bg-[var(--bg-glass)] backdrop-blur-[20px] backdrop-saturate-[180%] z-20 shrink-0 sticky top-0">
         <div className="flex items-center gap-2">
           {!isSidebarOpen && (
-            <button 
+            <button
               onClick={toggleSidebar}
               className="p-1 -ml-1 mr-1 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               title="Open Sidebar"
@@ -119,7 +134,7 @@ export default function WorkspacePage() {
       </div>
 
       <div className="flex flex-1 flex-col items-center p-8 z-10 animate-slide-up relative overflow-y-auto">
-        
+
         {/* Workspace Hero */}
         <div className="text-center mb-10">
           <div className="w-20 h-20 rounded-[20px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-apple flex items-center justify-center mb-6 mx-auto">
@@ -128,10 +143,10 @@ export default function WorkspacePage() {
           <h1 className="text-3xl font-display font-semibold tracking-tight text-[var(--text-primary)] mb-4">
             {workspace?.name || "Workspace"}
           </h1>
-          
+
           {workspace && (
             <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
-              <button 
+              <button
                 onClick={copyInviteCode}
                 className="px-3 py-1.5 bg-[var(--bg-surface)] rounded-full text-[var(--text-secondary)] font-mono border border-[var(--border)] shadow-sm text-xs hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
                 title="Click to copy"
@@ -156,7 +171,7 @@ export default function WorkspacePage() {
             This is your central hub for secure team communication.
           </p>
 
-          <button 
+          <button
             onClick={() => router.push(`/workspace/${workspaceId}/browse`)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-all shadow-apple active:scale-[0.98] mx-auto"
           >
