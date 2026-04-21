@@ -6,6 +6,7 @@ import Message from "@/models/Message";
 import { User } from "@/models/User";
 import { JoinRequest } from "@/models/JoinRequest";
 import { verifyAdminToken } from "../login/route";
+import { deleteFirebaseUser } from "@/lib/firebaseAdmin";
 
 function getAdmin(req: Request): { email: string } | null {
   const authHeader = req.headers.get("Authorization");
@@ -161,7 +162,12 @@ export async function DELETE(req: Request) {
 
     switch (type) {
       case "users": {
-        await User.findByIdAndDelete(id);
+        // Find the user first so we have the firebaseUid
+        const user = await User.findByIdAndDelete(id);
+        // Also delete from Firebase Auth if we have a UID
+        if (user?.firebaseUid) {
+          await deleteFirebaseUser(user.firebaseUid);
+        }
         break;
       }
       case "workspaces": {

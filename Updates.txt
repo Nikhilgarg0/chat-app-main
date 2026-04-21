@@ -8,4 +8,5 @@
 8. @mentions.
 9. Remove forwarding.
 10. Profile saving has a bug.
-11. Profile picture update and avatars.
+
+someone elses profile is stillbeing searched with the name, there should be a unique id for each user from which the user will be searched, we can implement.a username feature just like any social media, we will ask to set a username on the account creation and anyone can search a userwith its username
