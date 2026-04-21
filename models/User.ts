@@ -3,6 +3,7 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 export interface IUser extends Document {
   firebaseUid: string;
   email: string;
+  username?: string;
   displayName: string;
   avatarUrl?: string;
   bio?: string;

@@ -204,9 +204,9 @@ export default function OnboardingPage() {
 
         {currentStep === 2 && (
           <div className="flex flex-col animate-slide-up">
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h2 className="text-2xl font-bold mb-2">Make it yours</h2>
-              <p className="text-[var(--text-secondary)]">This is how your teammates will see you.</p>
+              <p className="text-[var(--text-secondary)]">Choose your identity on the platform.</p>
             </div>
 
             <div className="flex justify-center mb-6">
@@ -220,23 +220,41 @@ export default function OnboardingPage() {
 
             <div className="space-y-4 mb-8">
               <div>
-                <label className="block text-sm font-medium mb-1.5">Display Name</label>
-                <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all" />
+                <label className="block text-sm font-medium mb-1.5">Username <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] font-mono">@</span>
+                  <input 
+                    type="text" 
+                    value={username} 
+                    onChange={e => {
+                      const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                      setUsername(val);
+                      setUsernameAvailable(null); // Reset until checked
+                    }} 
+                    placeholder="unique_name"
+                    maxLength={20}
+                    className={`w-full pl-8 pr-3 py-2 bg-[var(--bg-elevated)] border rounded-lg outline-none transition-all ${usernameAvailable === false ? 'border-red-500 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : usernameAvailable === true ? 'border-green-500 focus:border-green-500 focus:shadow-[0_0_0_3px_rgba(34,197,94,0.2)]' : 'border-[var(--border)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)]'}`} 
+                  />
+                </div>
+                {username.length > 0 && username.length < 3 && <p className="text-xs text-red-500 mt-1">Username must be at least 3 characters</p>}
+                {usernameAvailable === false && <p className="text-xs text-red-500 mt-1">Username is already taken</p>}
+                {usernameAvailable === true && <p className="text-xs text-green-500 mt-1">Username is available!</p>}
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Display Name <span className="text-red-500">*</span></label>
+                <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all focus:shadow-[0_0_0_3px_var(--accent-glow)]" />
+              </div>
+
               <div className="relative">
                 <label className="block text-sm font-medium mb-1.5">Bio</label>
-                <textarea rows={2} value={bio} onChange={e => setBio(e.target.value)} maxLength={160} className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all resize-none" />
-                <span className="absolute bottom-2 right-2 text-xs text-[var(--text-tertiary)]">{bio.length}/160</span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Custom Status</label>
-                <input type="text" value={customStatus} onChange={e => setCustomStatus(e.target.value)} maxLength={80} placeholder="e.g. Building something great 🚀" className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all placeholder-[var(--text-tertiary)]" />
+                <textarea rows={2} value={bio} onChange={e => setBio(e.target.value)} maxLength={160} placeholder="A little about yourself..." className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all resize-none focus:shadow-[0_0_0_3px_var(--accent-glow)]" />
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-4">
               <button onClick={() => setCurrentStep(1)} className="px-6 py-2.5 text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] rounded-full font-medium transition-colors">Back</button>
-              <button disabled={!displayName.trim()} onClick={() => setCurrentStep(3)} className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-white rounded-full font-medium transition-colors active:scale-[0.98]">Continue →</button>
+              <button disabled={!displayName.trim() || !username.trim() || username.length < 3 || usernameAvailable === false} onClick={() => setCurrentStep(3)} className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-white rounded-full font-medium transition-colors active:scale-[0.98]">Continue →</button>
             </div>
           </div>
         )}
