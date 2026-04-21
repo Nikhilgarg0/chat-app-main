@@ -29,6 +29,7 @@ export interface IUser extends Document {
 const userSchema = new Schema<IUser>({
   firebaseUid: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
+  username: { type: String, unique: true, sparse: true, trim: true, lowercase: true, match: /^[a-zA-Z0-9_]{3,20}$/ },
   displayName: { type: String, required: true },
   avatarUrl: { type: String, default: "" },
   bio: { type: String, maxlength: 160 },
