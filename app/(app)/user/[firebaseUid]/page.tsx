@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { Twitter, Github, Linkedin, Globe, ArrowLeft, MessageSquare } from "lucide-react";
+import { PublicProfileSkeleton } from "@/components/ui/Skeletons";
 
 export default function PublicProfilePage({ params }: { params: Promise<{ firebaseUid: string }> }) {
   const unwrappedParams = use(params);
@@ -53,14 +54,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ fireba
     }
   }, [profile?.timezone]);
 
-  if (loading) return (
-    <div className="flex-1 flex items-center justify-center bg-[var(--bg-base)]">
-      <div className="flex flex-col items-center gap-4 animate-slide-up">
-        <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center text-white font-bold text-lg shadow-[var(--shadow)]">N</div>
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin" />
-      </div>
-    </div>
-  );
+  if (loading) return <PublicProfileSkeleton />;
 
   if (error) return (
     <div className="flex-1 flex items-center justify-center flex-col bg-[var(--bg-base)]">

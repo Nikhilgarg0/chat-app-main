@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -46,8 +47,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
           {/* Top branding */}
           <div className="relative z-10 p-10 flex items-center gap-3">
-            <span className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.2em]">Nexus Platform</span>
-            <div className="h-px flex-1 max-w-[80px] bg-white/15" />
+            <Image src="/logos/Logo_White.png" alt="Nexus" width={24} height={24} className="object-contain opacity-80" />
+            <Image src="/logos/Wordmark_White.png" alt="Nexus" width={70} height={18} className="object-contain opacity-60" />
           </div>
 
           {/* Bottom quote text */}
@@ -76,19 +77,15 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Mobile brand */}
           <div className="lg:hidden text-center mb-4">
             <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center">
-                <span className="text-[11px] font-bold text-black">N</span>
-              </div>
-              <span className="font-semibold text-lg tracking-tight">Nexus</span>
+              <Image src="/logos/Logo_White.png" alt="Nexus" width={28} height={28} className="object-contain" />
+              <Image src="/logos/Wordmark_White.png" alt="Nexus" width={80} height={22} className="object-contain" />
             </div>
           </div>
 
           {/* Desktop brand */}
           <div className="hidden lg:flex items-center gap-2 mb-6">
-            <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center">
-              <span className="text-[11px] font-bold text-black">N</span>
-            </div>
-            <span className="font-semibold text-lg tracking-tight">Nexus</span>
+            <Image src="/logos/Logo_White.png" alt="Nexus" width={28} height={28} className="object-contain" />
+            <Image src="/logos/Wordmark_White.png" alt="Nexus" width={80} height={22} className="object-contain" />
           </div>
 
           {children}

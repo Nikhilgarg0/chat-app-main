@@ -8,6 +8,8 @@ import { getErrorMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Trash2, X } from "lucide-react";
 import { useSidebar } from "@/components/SidebarContext";
+import PageLoader from "@/components/ui/PageLoader";
+import { WorkspacesGridSkeleton } from "@/components/ui/Skeletons";
 
 function InviteCodeReveal({ code }: { code: string }) {
   const [status, setStatus] = useState<"hidden" | "revealed" | "copied">("hidden");
@@ -229,13 +231,7 @@ export default function HomePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)]">
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
-      </main>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   const currentUid = auth.currentUser?.uid;
 

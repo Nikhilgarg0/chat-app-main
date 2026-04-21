@@ -7,6 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { authFetch } from "@/lib/authFetch";
 
 import AppSidebar from "@/components/layout/AppSidebar";
+import PageLoader from "@/components/ui/PageLoader";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -47,22 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [router, pathname]);
 
-  if (loading) {
-    return (
-      <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-[var(--bg-base)] px-4 relative overflow-hidden">
-        {/* Subtle ambient glow — matches the design system */}
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-[var(--accent)]/8 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-[var(--ai-accent)]/8 rounded-full blur-[80px] pointer-events-none" />
-
-        <div className="flex flex-col items-center gap-5 z-10 animate-slide-up">
-          <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center text-white font-bold text-lg shadow-[var(--shadow)]">
-            N
-          </div>
-          <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin" />
-        </div>
-      </main>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] font-body selection:bg-[var(--accent)]/30">

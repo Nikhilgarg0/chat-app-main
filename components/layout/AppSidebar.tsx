@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { pusherClient } from "@/lib/pusher-client";
@@ -199,8 +200,20 @@ export default function AppSidebar() {
           {/* Top Header - App Brand */}
           <div className="px-5 pb-4 flex items-center justify-between border-b border-[var(--border)] mb-2 shrink-0">
             <Link href="/home" className="flex items-center gap-2 hover:opacity-80 transition flex-1">
-              <div className="w-7 h-7 rounded-md bg-[var(--accent)] flex items-center justify-center text-white font-bold font-display text-sm">N</div>
-              <span className="font-display font-semibold text-lg tracking-tight truncate">Nexus</span>
+              <Image
+                src={theme === "light" ? "/logos/Logo_Black.png" : "/logos/Logo_White.png"}
+                alt="Nexus Logo"
+                width={28}
+                height={28}
+                className="shrink-0 object-contain"
+              />
+              <Image
+                src={theme === "light" ? "/logos/Wordmark_Black.png" : "/logos/Wordmark_White.png"}
+                alt="Nexus"
+                width={80}
+                height={22}
+                className="object-contain"
+              />
             </Link>
 
             <button

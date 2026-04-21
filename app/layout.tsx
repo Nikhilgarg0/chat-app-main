@@ -9,6 +9,12 @@ export const metadata: Metadata = {
     "Nexus is a secure, real-time team communication platform with AI-powered features. Collaborate with your team through channels, direct messages, and intelligent AI assistants.",
   keywords: ["team chat", "real-time messaging", "AI assistant", "collaboration"],
   authors: [{ name: "Nexus Team" }],
+  icons: {
+    icon: [
+      { url: "/logos/Logo_White.png", type: "image/png" },
+    ],
+    apple: "/logos/Logo_White.png",
+  },
 };
 
 export const viewport: Viewport = {

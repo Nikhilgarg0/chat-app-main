@@ -6,6 +6,7 @@ import { ArrowLeft, Search, Hash } from "lucide-react";
 import { authFetch } from "@/lib/authFetch";
 import { auth } from "@/lib/firebase";
 import Toast from "@/components/ui/Toast";
+import { ChannelListSkeleton } from "@/components/ui/Skeletons";
 
 export default function BrowseChannels({ params }: { params: Promise<{ workspaceId: string }> }) {
   const unwrappedParams = use(params);
@@ -93,7 +94,7 @@ export default function BrowseChannels({ params }: { params: Promise<{ workspace
 
           <div className="space-y-2">
             {loading ? (
-              <div className="text-center text-[var(--text-tertiary)] py-8">Loading channels...</div>
+              <ChannelListSkeleton count={6} />
             ) : filtered.length === 0 ? (
               <div className="text-center text-[var(--text-tertiary)] py-8">No channels found</div>
             ) : (

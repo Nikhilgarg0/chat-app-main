@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { authFetch } from "@/lib/authFetch";
 import Toast from "@/components/ui/Toast";
 import AvatarUpload from "@/components/ui/AvatarUpload";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
@@ -170,7 +173,22 @@ export default function OnboardingPage() {
 
         {currentStep === 1 && (
           <div className="flex flex-col items-center text-center animate-slide-up">
-            <h1 className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] mb-6">Nexus</h1>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <Image
+                src={theme === "light" ? "/logos/Logo_Black.png" : "/logos/Logo_White.png"}
+                alt="Nexus"
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+              <Image
+                src={theme === "light" ? "/logos/Wordmark_Black.png" : "/logos/Wordmark_White.png"}
+                alt="Nexus"
+                width={100}
+                height={30}
+                className="object-contain"
+              />
+            </div>
             <h2 className="text-2xl font-bold mb-2">Welcome, {displayName}</h2>
             <p className="text-[var(--text-secondary)] mb-8">Let's get your workspace set up in just a few steps.</p>
             

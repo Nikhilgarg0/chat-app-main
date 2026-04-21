@@ -7,6 +7,8 @@ import { auth } from "@/lib/firebase";
 import AvatarUpload from "@/components/ui/AvatarUpload";
 import { Twitter, Github, Linkedin, Globe, ArrowLeft, CheckCircle, AlertCircle, Copy } from "lucide-react";
 import Toast from "@/components/ui/Toast";
+import PageLoader from "@/components/ui/PageLoader";
+import { ProfileSkeleton } from "@/components/ui/Skeletons";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -125,14 +127,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) return (
-    <div className="flex-1 flex items-center justify-center p-8 bg-[var(--bg-base)]">
-      <div className="flex flex-col items-center gap-4 animate-slide-up">
-        <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center text-white font-bold text-lg shadow-[var(--shadow)]">N</div>
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin" />
-      </div>
-    </div>
-  );
+  if (loading) return <ProfileSkeleton />;
 
   return (
     <div className="flex-1 relative flex flex-col items-center bg-[var(--bg-base)] overflow-y-auto">
