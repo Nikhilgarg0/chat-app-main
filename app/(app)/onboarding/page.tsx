@@ -22,10 +22,29 @@ export default function OnboardingPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [bio, setBio] = useState("");
   const [customStatus, setCustomStatus] = useState("");
   const [timezone, setTimezone] = useState("UTC");
+
+  useEffect(() => {
+    if (!username.trim() || username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/check-username?username=${username}`);
+        const data = await res.json();
+        setUsernameAvailable(data.available);
+      } catch (err) {
+        setUsernameAvailable(false);
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [username]);
 
   const [wsName, setWsName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -97,6 +116,7 @@ export default function OnboardingPage() {
           firebaseUid: user.uid,
           email: user.email,
           onboardingComplete: true,
+          username,
           displayName,
           avatarUrl,
           bio,

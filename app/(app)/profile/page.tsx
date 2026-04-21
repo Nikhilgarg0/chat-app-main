@@ -250,6 +250,24 @@ export default function ProfilePage() {
               
               <div className="space-y-6">
                 <div>
+                  <label className="block text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 ml-1">Username</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] font-mono">@</span>
+                    <input 
+                      type="text" 
+                      className="w-full pl-9 pr-4 py-3 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)] outline-none transition-all font-medium" 
+                      value={formData.username || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                        handleChange("username", val);
+                      }}
+                      maxLength={20}
+                    />
+                  </div>
+                  {formData.username && formData.username.length < 3 && <p className="text-xs text-red-500 mt-2 ml-1">Must be at least 3 characters</p>}
+                </div>
+
+                <div>
                   <label className="block text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 ml-1">Display Name</label>
                   <input 
                     type="text" 
