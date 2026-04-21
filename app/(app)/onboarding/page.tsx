@@ -6,6 +6,7 @@ import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { authFetch } from "@/lib/authFetch";
 import Toast from "@/components/ui/Toast";
+import PageLoader from "@/components/ui/PageLoader";
 import AvatarUpload from "@/components/ui/AvatarUpload";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -142,13 +143,7 @@ export default function OnboardingPage() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)]">
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-base)] text-[var(--text-primary)] px-4 font-body transition-opacity duration-300">

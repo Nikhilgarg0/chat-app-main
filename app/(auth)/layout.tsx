@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import PageLoader from "@/components/ui/PageLoader";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -22,11 +23,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   }, [router]);
 
   if (loading) {
-    return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-[#0a0a0a]">
-        <div className="w-6 h-6 rounded-full border-[3px] border-white/10 border-t-white/70 animate-spin"></div>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   return (

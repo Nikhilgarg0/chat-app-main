@@ -2,6 +2,7 @@ import connectDB from "@/lib/mongodb";
 import Message from "@/models/Message";
 import { Channel } from "@/models/Channel";
 import { Workspace } from "@/models/Workspace";
+import { User } from "@/models/User";
 import { NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher-server";
 import { verifyToken } from "@/lib/firebaseAdmin";
@@ -47,9 +48,19 @@ export async function GET(req: Request) {
       .limit(50)
       .lean();
 
-    messages.reverse(); // chronological order for the client
+    // Map avatarUrls to messages
+    const uids = [...new Set(messages.map((m: any) => m.firebaseUid).filter(Boolean))];
+    const users = await User.find({ firebaseUid: { $in: uids } }, "firebaseUid avatarUrl").lean();
+    const avatarMap = new Map(users.map((u: any) => [u.firebaseUid, u.avatarUrl]));
 
-    return NextResponse.json({ success: true, messages, hasMore: messages.length === 50 });
+    const messagesWithAvatars = messages.map((m: any) => ({
+      ...m,
+      avatarUrl: m.type === "ai" ? null : avatarMap.get(m.firebaseUid) || ""
+    }));
+
+    messagesWithAvatars.reverse(); // chronological order for the client
+
+    return NextResponse.json({ success: true, messages: messagesWithAvatars, hasMore: messagesWithAvatars.length === 50 });
   } catch (error) {
     console.error("Messages GET Error:", error);
     return NextResponse.json(
@@ -88,6 +99,9 @@ export async function POST(req: Request) {
       ...(replyTo ? { replyTo } : {}),
     });
 
+    const user = await User.findOne({ firebaseUid: uid }, "avatarUrl").lean();
+    const avatarUrl = (user as any)?.avatarUrl || "";
+
     try {
       await pusherServer.trigger(`chat-${channelId}`, "new-message", {
         _id: String(message._id),
@@ -98,13 +112,14 @@ export async function POST(req: Request) {
         time: displayTime,
         msgId,
         createdAt: message.createdAt?.toISOString(),
+        avatarUrl,
         ...(replyTo ? { replyTo } : {}),
       });
     } catch (pusherError) {
       console.error("Pusher trigger error:", pusherError);
     }
 
-    return NextResponse.json({ success: true, message }, { status: 201 });
+    return NextResponse.json({ success: true, message: { ...message.toObject(), avatarUrl } }, { status: 201 });
   } catch (error) {
     console.error("Messages POST Error:", error);
     return NextResponse.json(

@@ -253,15 +253,7 @@ export default function MessageBubble({
           {/* ── Content column ── */}
           <div style={{ flex: 1, minWidth: 0 }}>
 
-            {/* Grouped hover timestamp — mirrors non-grouped header position */}
-            {isGrouped && rowHovered && (
-              <span style={{
-                fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace",
-                display: "block", marginBottom: 2, lineHeight: 1,
-              }}>
-                {displayTime}
-              </span>
-            )}
+
 
             {/* Header (name + time) — first message in group only */}
             {!isGrouped && (

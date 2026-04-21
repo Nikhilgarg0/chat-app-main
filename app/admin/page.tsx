@@ -9,6 +9,7 @@ import {
   Eye, EyeOff, LogOut, Lock, Mail, Search, X, ChevronLeft,
   ArrowLeft
 } from "lucide-react";
+import PageLoader from "@/components/ui/PageLoader";
 
 type Stats = {
   userCount: number;
@@ -487,14 +488,7 @@ export default function AdminPage() {
   };
 
   // Loading
-  if (checkingAuth) {
-    return (
-      <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-[var(--bg-base)]">
-        <Shield className="w-8 h-8 text-[var(--accent)] animate-pulse" />
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin mt-4" />
-      </main>
-    );
-  }
+  if (checkingAuth) return <PageLoader />;
 
   // ─── LOGIN ───
   if (!isAuthenticated) {

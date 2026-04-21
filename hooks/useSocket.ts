@@ -31,7 +31,7 @@ interface NotificationPrefs {
   sounds?: boolean;
 }
 
-export function useSocket(channelId: string, currentUsername: string, notificationPrefs: NotificationPrefs = {}) {
+export function useSocket(channelId: string, currentUsername: string, currentAvatarUrl: string, notificationPrefs: NotificationPrefs = {}) {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
@@ -87,7 +87,7 @@ export function useSocket(channelId: string, currentUsername: string, notificati
         if (data.msgId && prev.some((m) => m.msgId === data.msgId)) {
           return prev.map((m) =>
             m.msgId === data.msgId
-              ? { ...m, _id: data._id, status: "sent", timestamp: data.timestamp, createdAt: data.createdAt }
+              ? { ...m, ...data, status: "sent" }
               : m
           );
         }
@@ -172,6 +172,7 @@ export function useSocket(channelId: string, currentUsername: string, notificati
       channelId, author, content, timestamp, msgId,
       ...(replyTo ? { replyTo } : {}),
       status: "sending",
+      avatarUrl: currentAvatarUrl,
     };
 
     setMessages((prev) => [...prev, messageData]);

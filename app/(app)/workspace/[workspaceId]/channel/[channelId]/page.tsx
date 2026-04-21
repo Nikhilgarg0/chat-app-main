@@ -10,6 +10,7 @@ import { authFetch } from "@/lib/authFetch";
 import { useSidebar } from "@/components/SidebarContext";
 import { Lock } from "lucide-react";
 import Link from "next/link";
+import PageLoader from "@/components/ui/PageLoader";
 
 const AI_COMMANDS = [
   { command: "/ask", description: "Ask AI a question about this conversation" },
@@ -21,6 +22,7 @@ export default function ChannelPage() {
   const { channelId, workspaceId } = useParams();
   const router = useRouter();
   const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [notificationPrefs, setNotificationPrefs] = useState({ mentions: true, allMessages: false, sounds: true });
   const [messageInput, setMessageInput] = useState("");
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function ChannelPage() {
   const [isMember, setIsMember] = useState<boolean | null>(null);
   const [joining, setJoining] = useState(false);
 
-  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore } = useSocket(channelId as string, username, notificationPrefs);
+  const { messages, setMessages, connected, sendMessage, sendTyping, typingUsers, refetchMessages, loadMoreMessages, hasMore } = useSocket(channelId as string, username, avatarUrl, notificationPrefs);
   const { isSidebarOpen, toggleSidebar } = useSidebar();
 
   useEffect(() => {
@@ -58,6 +60,7 @@ export default function ChannelPage() {
             if (res.ok) {
               const data = await res.json();
               setUsername(data.user?.displayName || user.email?.split("@")[0] || "User");
+              setAvatarUrl(data.user?.avatarUrl || "");
               if (data.user?.notificationPrefs) {
                 setNotificationPrefs(data.user.notificationPrefs);
               }
@@ -107,6 +110,7 @@ export default function ChannelPage() {
         if (profileRes.ok) {
           const pdata = await profileRes.json();
           setUsername(pdata.user?.displayName || user.email?.split("@")[0] || "User");
+          setAvatarUrl(pdata.user?.avatarUrl || "");
           if (pdata.user?.notificationPrefs) setNotificationPrefs(pdata.user.notificationPrefs);
         } else {
           setUsername(user.email?.split("@")[0] || "User");
@@ -345,13 +349,7 @@ export default function ChannelPage() {
     inputRef.current?.focus();
   }, []);
 
-  if (isMember === null) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--bg-base)] w-full">
-        <div className="w-6 h-6 rounded-full border-[3px] border-[var(--border-strong)] border-t-[var(--accent)] animate-spin"></div>
-      </div>
-    );
-  }
+  if (isMember === null) return <PageLoader />;
 
   if (isMember === false) {
     return (
