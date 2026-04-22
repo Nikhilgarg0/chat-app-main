@@ -15,7 +15,7 @@ import { Sparkles, MessageSquare, Zap, ShieldCheck, ArrowRight, UserCircle, Glob
 export default function OnboardingPage() {
   const router = useRouter();
   const { theme } = useTheme();
-  
+
   // Steps: 1 = Welcome, 2 = Profile, 3 = Timezone, 4 = Workspace, 5 = Walkthrough
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -49,9 +49,9 @@ export default function OnboardingPage() {
   const [wsName, setWsName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [liveTime, setLiveTime] = useState("");
-  
+
   // Track onboarding completion separately so we don't accidentally redirect before walkthrough finishes
   const [onboardingSaved, setOnboardingSaved] = useState(false);
   const [savedWorkspaceId, setSavedWorkspaceId] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export default function OnboardingPage() {
             return;
           }
         }
-      } catch (err) {}
+      } catch (err) { }
 
       setDisplayName(user.displayName || user.email?.split("@")[0] || "");
       setAvatarUrl(user.photoURL || "");
@@ -79,7 +79,7 @@ export default function OnboardingPage() {
       try {
         const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (detected) setTimezone(detected);
-      } catch (e) {}
+      } catch (e) { }
 
       setLoading(false);
     });
@@ -107,7 +107,7 @@ export default function OnboardingPage() {
   const saveProfileConfig = async (): Promise<boolean> => {
     const user = auth.currentUser;
     if (!user) return false;
-    
+
     try {
       const res = await authFetch("/api/users/profile", {
         method: "POST",
@@ -134,7 +134,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     const saved = await saveProfileConfig();
     if (!saved) { setToast("Error saving profile"); setIsSubmitting(false); return; }
-    
+
     try {
       const res = await authFetch("/api/workspaces", {
         method: "POST",
@@ -154,7 +154,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     const saved = await saveProfileConfig();
     if (!saved) { setToast("Error saving profile"); setIsSubmitting(false); return; }
-    
+
     try {
       const res = await authFetch("/api/workspaces/join", {
         method: "POST",
@@ -174,7 +174,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     const saved = await saveProfileConfig();
     if (!saved) { setToast("Error saving profile"); setIsSubmitting(false); return; }
-    
+
     setOnboardingSaved(true);
     setCurrentStep(5); // goto walkthrough
   };
@@ -201,28 +201,28 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-base)] text-[var(--text-primary)] px-4 font-body transition-opacity duration-300 overflow-hidden">
-      
+
       {/* Animated background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
-          className={`absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-3xl mix-blend-multiply opacity-50 dark:opacity-20 animate-pulse transition-colors duration-1000 ${blobColors[currentStep - 1]}`} 
+        <div
+          className={`absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-3xl mix-blend-multiply opacity-50 dark:opacity-20 animate-pulse transition-colors duration-1000 ${blobColors[currentStep - 1]}`}
           style={{ animationDuration: '8s' }}
         />
-        <div 
-          className={`absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full blur-3xl mix-blend-multiply opacity-50 dark:opacity-20 animate-pulse transition-colors duration-1000 ${blobColors[(currentStep % 4)]}`} 
+        <div
+          className={`absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full blur-3xl mix-blend-multiply opacity-50 dark:opacity-20 animate-pulse transition-colors duration-1000 ${blobColors[(currentStep % 4)]}`}
           style={{ animationDuration: '12s' }}
         />
       </div>
 
       <div className="relative z-10 w-full max-w-[520px] bg-[var(--bg-surface)] backdrop-blur-[40px] backdrop-saturate-[200%] border border-[var(--border)] rounded-[32px] p-8 sm:p-10 shadow-[0_8px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.4)] transition-transform duration-300">
-        
+
         {/* Progress header (hidden on walkthrough step) */}
         {currentStep < 5 && (
           <div className="flex flex-col items-center gap-4 mb-8">
             <div className="flex items-center justify-center gap-3 w-full max-w-[200px]">
               {[1, 2, 3, 4].map((step) => (
                 <div key={step} className="flex-1 h-1.5 rounded-full bg-[var(--border-strong)] overflow-hidden relative">
-                  <div 
+                  <div
                     className="absolute inset-0 bg-[var(--accent)] transition-transform duration-500 origin-left"
                     style={{ transform: step <= currentStep ? 'scaleX(1)' : 'scaleX(0)' }}
                   />
@@ -238,14 +238,14 @@ export default function OnboardingPage() {
             <div className="w-20 h-20 bg-gradient-to-br from-[var(--accent)] to-purple-500 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-[var(--accent)]/20 rotate-3 hover:rotate-6 transition-transform">
               <Sparkles className="w-10 h-10 text-white" />
             </div>
-            
+
             <h2 className="text-3xl font-display font-extrabold tracking-tight mb-3 bg-clip-text text-transparent bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)]">
               Welcome to Nexus
             </h2>
             <p className="text-[var(--text-secondary)] text-[15px] max-w-[320px] mb-8 leading-relaxed">
               We're thrilled to have you, <span className="font-semibold text-[var(--text-primary)]">{displayName}</span>. Let's get your digital HQ set up perfectly.
             </p>
-            
+
             <div className="w-full flex justify-center mb-10">
               <div className="flex flex-wrap justify-center gap-2 max-w-[340px]">
                 <div className="flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-full px-3 py-1.5 text-xs font-medium shadow-sm"><Zap className="w-3.5 h-3.5 text-yellow-500" /> Real-time sync</div>
@@ -254,11 +254,11 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <button 
-              onClick={() => setCurrentStep(2)} 
+            <button
+              onClick={() => setCurrentStep(2)}
               className="group w-full py-3.5 bg-[var(--text-primary)] text-[var(--bg-base)] rounded-xl font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2 hover:shadow-xl"
             >
-              Let's go 
+              Let's go
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -267,23 +267,14 @@ export default function OnboardingPage() {
         {/* STEP 2: PROFILE */}
         {currentStep === 2 && (
           <div className="flex flex-col animate-slide-up">
-<<<<<<< HEAD
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold mb-2">Make it yours</h2>
               <p className="text-[var(--text-secondary)]">Choose your identity on the platform.</p>
-=======
-            <div className="text-center mb-8">
-              <div className="w-12 h-12 bg-purple-500/10 text-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <UserCircle className="w-6 h-6" />
-              </div>
-              <h2 className="text-2xl font-display font-bold mb-2 tracking-tight">Make it yours</h2>
-              <p className="text-sm text-[var(--text-secondary)]">This is how your teammates will recognise you in channels.</p>
->>>>>>> Nikhil-on-Mac
             </div>
 
             <div className="flex justify-center mb-6">
               <div className="relative p-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-full shadow-lg">
-                <AvatarUpload 
+                <AvatarUpload
                   currentAvatarUrl={avatarUrl}
                   displayName={displayName}
                   onUploadComplete={setAvatarUrl}
@@ -294,28 +285,27 @@ export default function OnboardingPage() {
 
             <div className="space-y-4 mb-8">
               <div>
-<<<<<<< HEAD
                 <label className="block text-sm font-medium mb-1.5">Username <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] font-mono">@</span>
-                  <input 
-                    type="text" 
-                    value={username} 
+                  <input
+                    type="text"
+                    value={username}
                     onChange={e => {
                       const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
                       setUsername(val);
                       setUsernameAvailable(null); // Reset until checked
-                    }} 
+                    }}
                     placeholder="unique_name"
                     maxLength={20}
-                    className={`w-full pl-8 pr-3 py-2 bg-[var(--bg-elevated)] border rounded-lg outline-none transition-all ${usernameAvailable === false ? 'border-red-500 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : usernameAvailable === true ? 'border-green-500 focus:border-green-500 focus:shadow-[0_0_0_3px_rgba(34,197,94,0.2)]' : 'border-[var(--border)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)]'}`} 
+                    className={`w-full pl-8 pr-3 py-2 bg-[var(--bg-elevated)] border rounded-lg outline-none transition-all ${usernameAvailable === false ? 'border-red-500 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : usernameAvailable === true ? 'border-green-500 focus:border-green-500 focus:shadow-[0_0_0_3px_rgba(34,197,94,0.2)]' : 'border-[var(--border)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)]'}`}
                   />
                 </div>
                 {username.length > 0 && username.length < 3 && <p className="text-xs text-red-500 mt-1">Username must be at least 3 characters</p>}
                 {usernameAvailable === false && <p className="text-xs text-red-500 mt-1">Username is already taken</p>}
                 {usernameAvailable === true && <p className="text-xs text-green-500 mt-1">Username is available!</p>}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1.5">Display Name <span className="text-red-500">*</span></label>
                 <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg focus:border-[var(--accent)] outline-none transition-all focus:shadow-[0_0_0_3px_var(--accent-glow)]" />
@@ -330,23 +320,7 @@ export default function OnboardingPage() {
             <div className="flex items-center justify-between gap-4">
               <button onClick={() => setCurrentStep(1)} className="px-6 py-2.5 text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] rounded-full font-medium transition-colors">Back</button>
               <button disabled={!displayName.trim() || !username.trim() || username.length < 3 || usernameAvailable === false} onClick={() => setCurrentStep(3)} className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-white rounded-full font-medium transition-colors active:scale-[0.98]">Continue →</button>
-=======
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 ml-1">Display Name</label>
-                <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full px-4 py-3 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all font-medium text-[15px]" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 ml-1 flex justify-between">
-                  <span>Custom Status</span>
-                  <span className="font-normal text-[10px] lowercase text-[var(--text-tertiary)] pt-0.5">Optional</span>
-                </label>
-                <input type="text" value={customStatus} onChange={e => setCustomStatus(e.target.value)} maxLength={80} placeholder="e.g. Building something great 🚀" className="w-full px-4 py-3 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-glow)] outline-none transition-all placeholder-[var(--text-tertiary)] text-[14px]" />
-              </div>
-            </div>
 
-            <div className="flex items-center justify-between gap-3 mt-auto">
-              <button onClick={() => setCurrentStep(1)} className="px-5 py-3 hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] rounded-xl font-medium transition-colors text-sm">Back</button>
-              <button disabled={!displayName.trim()} onClick={() => setCurrentStep(3)} className="flex-1 px-5 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-white rounded-xl font-semibold transition-colors active:scale-[0.98] shadow-lg shadow-[var(--accent)]/20 text-sm">Continue</button>
->>>>>>> Nikhil-on-Mac
             </div>
           </div>
         )}
@@ -366,7 +340,7 @@ export default function OnboardingPage() {
               <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent inset-x-0 opacity-50" />
               <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-widest mb-1 mt-1">Current Local Time</p>
               <p className="text-4xl font-mono font-light tracking-tight text-[var(--text-primary)] mb-5">{liveTime || "--:--"}</p>
-              
+
               <div className="relative">
                 <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl focus:border-[var(--accent)] outline-none transition-all appearance-none cursor-pointer text-sm font-medium hover:border-[var(--border-strong)]">
                   {typeof Intl !== 'undefined' && Intl.supportedValuesOf ? (
@@ -425,16 +399,16 @@ export default function OnboardingPage() {
             </div>
 
             <div className="flex items-center justify-between gap-3 mt-auto">
-              <button 
-                onClick={() => setCurrentStep(3)} 
+              <button
+                onClick={() => setCurrentStep(3)}
                 disabled={isSubmitting}
                 className="px-5 py-3 hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] rounded-xl font-medium transition-colors text-sm disabled:opacity-50"
               >
                 Back
               </button>
-              <button 
-                onClick={skipWorkspace} 
-                disabled={isSubmitting} 
+              <button
+                onClick={skipWorkspace}
+                disabled={isSubmitting}
                 className="px-5 py-3 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors font-medium disabled:opacity-50"
               >
                 {isSubmitting ? "Saving..." : "Skip for now"}
@@ -448,7 +422,7 @@ export default function OnboardingPage() {
       {currentStep === 5 && (
         <WalkthroughOverlay onDone={handleWalkthroughDone} />
       )}
-      
+
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   );
