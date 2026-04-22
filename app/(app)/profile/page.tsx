@@ -426,7 +426,7 @@ export default function ProfilePage() {
               </button>
               <button 
                 onClick={() => handleSave(formData, false)} 
-                disabled={saving} 
+                disabled={saving || !formData.username || formData.username.length < 3 || usernameAvailable === false} 
                 className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white px-5 py-2.5 rounded-full text-[14px] font-semibold transition-all active:scale-95 flex items-center gap-2 shadow-[0_4px_12px_var(--accent-glow)] min-w-[120px] justify-center"
               >
                 {saving ? (

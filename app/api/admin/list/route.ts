@@ -38,10 +38,13 @@ export async function GET(req: Request) {
     switch (type) {
       case "users": {
         const filter = search
-          ? { $or: [
-              { displayName: { $regex: search, $options: "i" } },
-              { email: { $regex: search, $options: "i" } },
-            ]}
+          ? {
+              $or: [
+                { username: { $regex: search, $options: "i" } },
+                { displayName: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+              ],
+            }
           : {};
         total = await User.countDocuments(filter);
         items = await User.find(filter)
