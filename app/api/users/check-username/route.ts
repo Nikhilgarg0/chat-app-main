@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
+<<<<<<< HEAD
 import { connectDB } from "@/lib/mongodb";
+=======
+import connectDB from "@/lib/mongodb";
+>>>>>>> Nikhil-on-Mac
 import { User } from "@/models/User";
 import { verifyToken } from "@/lib/firebaseAdmin";
 
@@ -20,14 +24,20 @@ export async function GET(req: Request) {
     const existing = await User.findOne({ username }).select("firebaseUid").lean();
     
     // We check if it is taken, but if it is taken by the same user, it's fine!
+<<<<<<< HEAD
     // Let's see if we have an auth context to allow them to keep their own username
+=======
+>>>>>>> Nikhil-on-Mac
     const authHeader = req.headers.get("Authorization");
     let currentUid = null;
     if (authHeader) {
       currentUid = await verifyToken(req);
     }
     
+<<<<<<< HEAD
     // If it exists and the UID is different, it's unavailable.
+=======
+>>>>>>> Nikhil-on-Mac
     if (existing && existing.firebaseUid !== currentUid) {
       return NextResponse.json({ available: false, error: "Username is already taken" });
     }
